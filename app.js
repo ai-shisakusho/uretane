@@ -33,11 +33,18 @@ let bloomTimer = null;
 const $ = (id) => document.getElementById(id);
 
 const elements = {
+  appHeader: $('appHeader'),
+  bottomNav: $('bottomNav'),
+  homeContent: $('homeContent'),
+  dateLabel: $('dateLabel'),
+  homeFlowerPill: $('homeFlowerPill'),
+  homeFlowerCount: $('homeFlowerCount'),
   openAddButton: $('openAddButton'),
   onboardingCard: $('onboardingCard'),
   onboardingAddButton: $('onboardingAddButton'),
-  homeAddButton: $('homeAddButton'),
-  homeShareButton: $('homeShareButton'),
+  nextStepCard: $('nextStepCard'),
+  nextStepShareButton: $('nextStepShareButton'),
+  growthCard: $('growthCard'),
   monthFlowerCount: $('monthFlowerCount'),
   grownKindsCount: $('grownKindsCount'),
   totalKindsCount: $('totalKindsCount'),
@@ -78,9 +85,6 @@ const elements = {
   selfHero: $('selfHero'),
   partnerCount: $('partnerCount'),
   selfCount: $('selfCount'),
-  todayCount: $('todayCount'),
-  soonCount: $('soonCount'),
-  anytimeCount: $('anytimeCount'),
   partnerMissionEmpty: $('partnerMissionEmpty'),
   partnerMissionCard: $('partnerMissionCard'),
   partnerMissionUrgency: $('partnerMissionUrgency'),
@@ -215,6 +219,8 @@ function createEmptyCard(text) {
 function createRequestCard(item, type) {
   const card = document.createElement('article');
   card.className = 'request-card';
+  const cardKind = type === 'partner' || (type === 'mine' && item.executor === 'partner') ? 'partner' : 'self';
+  card.classList.add(`request-${cardKind}`);
 
   const top = document.createElement('div');
   top.className = 'request-meta';
@@ -328,14 +334,18 @@ function renderHistory() {
 function renderSummary() {
   elements.partnerCount.textContent = `${state.partnerItems.length}件`;
   const selfItems = state.myItems.filter((item) => item.executor === 'self');
+  const partnerTargetItems = state.myItems.filter((item) => item.executor === 'partner');
   elements.selfCount.textContent = `${selfItems.length}件`;
 
   const visibleItems = [...state.partnerItems, ...selfItems];
-  elements.todayCount.textContent = String(visibleItems.filter((item) => item.urgency === 'today').length);
-  elements.soonCount.textContent = String(visibleItems.filter((item) => item.urgency === 'soon').length);
-  elements.anytimeCount.textContent = String(visibleItems.filter((item) => item.urgency === 'anytime').length);
+  const hasAnySeeds = state.myItems.length > 0 || state.partnerItems.length > 0;
+  const hasAnyData = hasAnySeeds || state.history.length > 0;
+  const hasActionableSeeds = visibleItems.length > 0;
 
   const now = new Date();
+  const weekday = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][now.getDay()];
+  elements.dateLabel.textContent = `${now.getMonth() + 1}/${now.getDate()} ${weekday}`;
+
   const monthFlowers = state.history.filter((item) => {
     const date = new Date(item.completedAt);
     return !Number.isNaN(date.getTime()) && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
@@ -347,35 +357,66 @@ function renderSummary() {
   const progress = totalKinds ? Math.round((grownKinds / totalKinds) * 100) : 0;
 
   elements.monthFlowerCount.textContent = String(monthFlowers);
+  elements.homeFlowerCount.textContent = String(monthFlowers);
   elements.grownKindsCount.textContent = String(grownKinds);
   elements.totalKindsCount.textContent = String(totalKinds);
   elements.growthProgress.value = progress;
   elements.growthProgress.textContent = `${progress}%`;
-  elements.onboardingCard.hidden = state.myItems.length > 0 || state.partnerItems.length > 0;
-  elements.partnerHero.hidden = state.partnerItems.length === 0 && selfItems.length > 0;
-  elements.selfHero.hidden = selfItems.length === 0 && state.partnerItems.length > 0;
+
+  // 初回はプロトタイプと同じく「まず1つまく」だけに集中させる。
+  elements.onboardingCard.hidden = hasAnySeeds;
+  elements.homeContent.hidden = !hasAnySeeds;
+  elements.appHeader.hidden = !hasAnyData;
+  elements.bottomNav.hidden = !hasAnyData;
+  elements.openAddButton.hidden = !hasAnySeeds;
+  elements.homeFlowerPill.hidden = state.history.length === 0;
+  elements.growthCard.hidden = state.history.length === 0;
+  elements.partnerHero.hidden = state.partnerItems.length === 0;
+  elements.selfHero.hidden = selfItems.length === 0;
+  elements.nextStepCard.hidden = !(partnerTargetItems.length > 0 && !hasActionableSeeds);
 
   elements.drawPartnerButton.disabled = state.partnerItems.length === 0;
   elements.drawSelfButton.disabled = selfItems.length === 0;
+
+  if (!hasAnyData) {
+    const activeView = document.querySelector('.view.is-active');
+    if (activeView?.dataset.view !== 'home') setView('home');
+  }
 }
 
 function renderMission(kind) {
   const isPartner = kind === 'partner';
-  const id = isPartner ? currentPartnerMissionId : currentSelfMissionId;
+  let id = isPartner ? currentPartnerMissionId : currentSelfMissionId;
   const source = isPartner ? state.partnerItems : state.myItems.filter((item) => item.executor === 'self');
-  const item = source.find((entry) => entry.id === id);
+  let item = source.find((entry) => entry.id === id);
   const empty = isPartner ? elements.partnerMissionEmpty : elements.selfMissionEmpty;
   const card = isPartner ? elements.partnerMissionCard : elements.selfMissionCard;
   const chip = isPartner ? elements.partnerMissionUrgency : elements.selfMissionUrgency;
   const text = isPartner ? elements.partnerMissionText : elements.selfMissionText;
+  const drawButton = isPartner ? elements.drawPartnerButton : elements.drawSelfButton;
+  const rerollButton = isPartner ? elements.partnerRerollButton : elements.selfRerollButton;
+
+  // タネがあれば、ホームを開いた時点で「今日の1つ」を見せる。
+  if (!item && source.length) {
+    const pool = getPriorityPool(source);
+    item = pool[Math.floor(Math.random() * pool.length)];
+    id = item.id;
+    if (isPartner) currentPartnerMissionId = id;
+    else currentSelfMissionId = id;
+  }
 
   if (!item) {
     empty.hidden = false;
     card.hidden = true;
+    drawButton.hidden = false;
+    rerollButton.hidden = true;
     return;
   }
+
   empty.hidden = true;
   card.hidden = false;
+  drawButton.hidden = true;
+  rerollButton.hidden = source.length < 2;
   chip.className = `urgency-chip ${urgencyMeta[item.urgency].className}`;
   chip.textContent = urgencyMeta[item.urgency].label;
   text.textContent = item.text;
@@ -440,7 +481,7 @@ async function shareCompletion() {
   if (!item) return;
   elements.completionDialog.close();
   pendingCompletionItem = null;
-  const text = `うれタネ「${item.text}」を育てたよ 🌼`;
+  const text = `うれタネ「${item.text}」を育てたよ。花がひとつ咲きました。`;
   if (navigator.share) {
     try {
       await navigator.share({ title: 'うれタネを育てたよ', text });
@@ -797,8 +838,7 @@ function attachEvents() {
 
   elements.openAddButton.addEventListener('click', () => openRequestDialog());
   elements.onboardingAddButton.addEventListener('click', () => openRequestDialog());
-  elements.homeAddButton.addEventListener('click', () => openRequestDialog());
-  elements.homeShareButton.addEventListener('click', openShareDialog);
+  elements.nextStepShareButton.addEventListener('click', openShareDialog);
   elements.addRequestButton.addEventListener('click', () => openRequestDialog());
   elements.requestText.addEventListener('input', () => {
     elements.charCount.textContent = String(elements.requestText.value.length);

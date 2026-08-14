@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#FBF3E7"/>
+
+  <!-- stem -->
+  <path d="M256 400 C256 320 256 280 256 240" stroke="#3B6D11" stroke-width="16" stroke-linecap="round" fill="none"/>
+
+  <!-- leaves -->
+  <path d="M256 340 C 200 340 176 300 176 264 C 226 264 256 296 256 340 Z" fill="#639922"/>
+  <path d="M256 320 C 312 320 336 280 336 244 C 286 244 256 276 256 320 Z" fill="#97C459"/>
+
+  <!-- flower petals -->
+  <g>
+    <ellipse cx="256" cy="150" rx="26" ry="42" fill="#F0997B"/>
+    <ellipse cx="256" cy="150" rx="26" ry="42" fill="#F0997B" transform="rotate(72 256 150)"/>
+    <ellipse cx="256" cy="150" rx="26" ry="42" fill="#F0997B" transform="rotate(144 256 150)"/>
+    <ellipse cx="256" cy="150" rx="26" ry="42" fill="#F0997B" transform="rotate(216 256 150)"/>
+    <ellipse cx="256" cy="150" rx="26" ry="42" fill="#F0997B" transform="rotate(288 256 150)"/>
+  </g>
+  <circle cx="256" cy="150" r="24" fill="#EF9F27"/>
+
+  <!-- ground line -->
+  <path d="M180 404 Q256 424 332 404" stroke="#3B6D11" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.5"/>
+</svg>

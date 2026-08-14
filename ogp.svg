@@ -1,0 +1,14 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#EFF5E4"/>
+
+  <g transform="translate(140, 165)">
+    <path d="M150 300 C150 220 150 180 150 140" stroke="#3B6D11" stroke-width="18" stroke-linecap="round" fill="none"/>
+    <path d="M150 220 C 84 220 54 170 54 120 C 114 120 150 160 150 220 Z" fill="#639922"/>
+    <path d="M150 180 C 216 180 246 130 246 80 C 186 80 150 120 150 180 Z" fill="#97C459"/>
+    <circle cx="150" cy="116" r="14" fill="#EF9F27"/>
+    <path d="M74 304 Q150 324 226 304" stroke="#3B6D11" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.5"/>
+  </g>
+
+  <text x="480" y="330" font-family="sans-serif" font-size="88" font-weight="700" fill="#27500A">うれタネ</text>
+  <text x="480" y="390" font-family="sans-serif" font-size="34" fill="#5F5E5A">小さなうれしいを、育てよう。</text>
+</svg>

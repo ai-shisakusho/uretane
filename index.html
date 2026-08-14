@@ -3,345 +3,241 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f7fbf5">
+  <meta name="theme-color" content="#EFF5E4">
   <meta name="description" content="小さなうれしいを、育てよう。うれしいことをタネとして残し、少しずつ育てるWebアプリ。">
+  <meta property="og:title" content="うれタネ">
+  <meta property="og:description" content="小さなうれしいを、育てよう。">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://ai-shisakusho.github.io/uretane/ogp.png">
+  <meta name="twitter:card" content="summary_large_image">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>うれタネ | Prototype 003</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">Prototype 003</p>
-        <h1>うれタネ</h1>
-        <p class="tagline">小さなうれしいを、育てよう。</p>
+    <header class="app-header" id="appHeader" hidden>
+      <button class="brand-button" type="button" data-nav="home" aria-label="ホームへ戻る">
+        <img src="favicon.svg" alt="" width="28" height="28">
+        <span>うれタネ</span>
+      </button>
+      <div class="header-actions">
+        <button class="circle-button add-circle" id="openAddButton" type="button" aria-label="うれタネを追加">＋</button>
+        <button class="circle-button settings-circle" type="button" data-nav="settings" aria-label="設定を開く"><span aria-hidden="true">⚙</span></button>
       </div>
-      <button class="header-add-button" id="openAddButton" type="button" aria-label="うれタネを追加">＋ タネをまく</button>
     </header>
 
     <main>
-      <section class="view is-active" data-view="home" aria-labelledby="homeTitle">
+      <section class="view is-active home-view" data-view="home" aria-labelledby="homeTitle">
         <h2 id="homeTitle" class="sr-only">ホーム</h2>
 
-        <article class="start-guide" id="onboardingCard" hidden>
-          <div class="guide-head">
-            <span class="guide-icon" aria-hidden="true">🌱</span>
-            <div>
-              <p class="mini-label">はじめかた</p>
-              <h3>まず、うれしいことを1つタネにしよう</h3>
-            </div>
+        <article class="empty-home" id="onboardingCard" hidden>
+          <div class="empty-visual" aria-hidden="true"><img src="icon.svg" alt=""></div>
+          <div class="empty-copy">
+            <h3>小さなうれしいを、<br>育てよう。</h3>
+            <p>「こうだったら うれしい」を、<br>ひとつ置いておくところから。</p>
           </div>
-          <ol class="guide-steps">
-            <li><strong>タネをまく</strong><span>うれしいことを登録</span></li>
-            <li><strong>必要なら届ける</strong><span>相手に共有</span></li>
-            <li><strong>ひとつ育てる</strong><span>できたら花が咲く</span></li>
-          </ol>
-          <button class="primary-button full" id="onboardingAddButton" type="button">最初のうれタネをまく</button>
+          <div class="empty-action">
+            <button class="primary-button sow-button" id="onboardingAddButton" type="button"><span class="plus-mark" aria-hidden="true"></span>タネをまく</button>
+            <p>まずは1つだけ。あとから増やせます。</p>
+          </div>
         </article>
 
-        <section class="growth-card" aria-label="うれタネの記録">
-          <div class="growth-heading">
+        <div class="home-content" id="homeContent" hidden>
+          <div class="home-title-row">
             <div>
-              <p class="mini-label">今の育ち具合</p>
-              <h3><span id="monthFlowerCount">0</span>輪の花が咲きました</h3>
+              <p class="date-label" id="dateLabel"></p>
+              <h2>今日のうれタネ</h2>
             </div>
-            <div class="growth-flower" aria-hidden="true">🌼</div>
+            <button class="flower-pill" id="homeFlowerPill" type="button" data-nav="history" hidden aria-label="育ち具合を見る">
+              <span class="mini-flower-icon" aria-hidden="true"></span><strong id="homeFlowerCount">0</strong>
+            </button>
           </div>
-          <div class="growth-progress-row">
-            <span>育てたタネ</span>
-            <strong><span id="grownKindsCount">0</span> / <span id="totalKindsCount">0</span></strong>
-          </div>
-          <progress class="progress-track" id="growthProgress" max="100" value="0" aria-label="育てたタネの割合">0%</progress>
-          <p class="growth-note">ノルマではなく、どれくらい育ったかをうっすら振り返る記録です。</p>
-        </section>
 
-        <article class="hero-card partner-hero" id="partnerHero">
-          <div class="card-heading">
-            <div>
-              <p class="mini-label">相手から届いたタネ</p>
-              <h3>今日のうれタネ</h3>
+          <article class="next-step-card" id="nextStepCard" hidden>
+            <div class="next-step-icon" aria-hidden="true"><span class="send-icon"></span></div>
+            <div class="next-step-copy">
+              <p class="mini-label">次のステップ</p>
+              <h3>相手にうれタネを届けよう</h3>
+              <p>共有リンクを送ると、相手の端末にタネを取り込めます。</p>
             </div>
-            <span class="count-badge" id="partnerCount">0件</span>
-          </div>
-          <p class="card-helper">相手が「こうだったらうれしい」と残したタネから、今日ひとつ選びます。</p>
-          <div id="partnerMissionEmpty" class="empty-state compact">
-            <p>まだ届いたタネはありません。共有リンクを受け取ると、ここに表示されます。</p>
-          </div>
-          <div id="partnerMissionCard" class="mission-card" hidden>
-            <span class="urgency-chip" id="partnerMissionUrgency"></span>
-            <p class="mission-text" id="partnerMissionText"></p>
-            <div class="button-row">
-              <button class="primary-button" id="partnerDoneButton" type="button">育てた！</button>
-              <button class="secondary-button" id="partnerRerollButton" type="button">別のタネ</button>
-            </div>
-          </div>
-          <button class="primary-button full" id="drawPartnerButton" type="button">今日のタネを選ぶ</button>
-        </article>
+            <button class="primary-button full" id="nextStepShareButton" type="button">相手に届ける</button>
+          </article>
 
-        <article class="hero-card self-hero" id="selfHero">
-          <div class="card-heading">
-            <div>
-              <p class="mini-label">自分で育てるタネ</p>
-              <h3>自分にも、ひとつ。</h3>
+          <article class="today-card" id="partnerHero">
+            <div class="today-meta">
+              <span class="owner-mark partner-mark" aria-hidden="true"></span>
+              <span>届いた、うれしいこと</span>
+              <span class="count-badge" id="partnerCount">0件</span>
             </div>
-            <span class="count-badge" id="selfCount">0件</span>
-          </div>
-          <p class="card-helper">ひとりでも使えます。自分がやったらうれしいことをタネにできます。</p>
-          <div id="selfMissionEmpty" class="empty-state compact">
-            <p>自分用のタネをまくと、ここから今日ひとつ選べます。</p>
-          </div>
-          <div id="selfMissionCard" class="mission-card" hidden>
-            <span class="urgency-chip" id="selfMissionUrgency"></span>
-            <p class="mission-text" id="selfMissionText"></p>
-            <div class="button-row">
-              <button class="primary-button" id="selfDoneButton" type="button">育てた！</button>
-              <button class="secondary-button" id="selfRerollButton" type="button">別のタネ</button>
+            <div id="partnerMissionEmpty" class="empty-state compact"><p>まだ届いたタネはありません。</p></div>
+            <div id="partnerMissionCard" class="mission-card" hidden>
+              <span class="urgency-chip" id="partnerMissionUrgency"></span>
+              <p class="mission-text" id="partnerMissionText"></p>
+              <div class="mission-foot"><span class="sprout-small" aria-hidden="true"></span><span>今日ひとつ、育ててみる。</span></div>
+              <div class="button-row">
+                <button class="primary-button grow-button" id="partnerDoneButton" type="button">育てた！</button>
+                <button class="secondary-button" id="partnerRerollButton" type="button">別のタネ</button>
+              </div>
             </div>
-          </div>
-          <button class="secondary-button full" id="drawSelfButton" type="button">自分のタネを選ぶ</button>
-        </article>
+            <button class="primary-button full" id="drawPartnerButton" type="button">今日のタネを選ぶ</button>
+          </article>
 
-        <section class="home-quick-actions" aria-label="すぐできる操作">
-          <button class="quick-action" id="homeAddButton" type="button">
-            <span aria-hidden="true">🌱</span>
-            <strong>タネをまく</strong>
-            <small>うれしいことを登録</small>
-          </button>
-          <button class="quick-action" id="homeShareButton" type="button">
-            <span aria-hidden="true">✉️</span>
-            <strong>相手に届ける</strong>
-            <small>共有リンクを作る</small>
-          </button>
-        </section>
-
-        <section class="home-summary" aria-label="タネの期限別件数">
-          <div class="summary-card">
-            <strong id="todayCount">0</strong>
-            <span>今日</span>
-          </div>
-          <div class="summary-card">
-            <strong id="soonCount">0</strong>
-            <span>近々</span>
-          </div>
-          <div class="summary-card">
-            <strong id="anytimeCount">0</strong>
-            <span>いつでも</span>
-          </div>
-        </section>
+          <article class="self-seed-card" id="selfHero">
+            <div class="self-seed-head">
+              <span class="seed-icon" aria-hidden="true"></span>
+              <div><p class="mini-label">自分のうれタネ</p><h3>自分にも、ひとつ。</h3></div>
+              <span class="count-badge" id="selfCount">0件</span>
+            </div>
+            <div id="selfMissionEmpty" class="empty-state compact"><p>自分用のタネをまくと、ここに出てきます。</p></div>
+            <div id="selfMissionCard" class="self-mission" hidden>
+              <div><span class="urgency-chip" id="selfMissionUrgency"></span><p class="self-mission-text" id="selfMissionText"></p></div>
+              <div class="self-mission-actions">
+                <button class="text-action" id="selfRerollButton" type="button">別のタネ</button>
+                <button class="text-action strong" id="selfDoneButton" type="button">育てた！</button>
+              </div>
+            </div>
+            <button class="secondary-button full" id="drawSelfButton" type="button">自分のタネを選ぶ</button>
+          </article>
+        </div>
       </section>
 
       <section class="view" data-view="requests" aria-labelledby="requestsTitle" hidden>
-        <div class="section-title-row">
-          <div>
-            <p class="eyebrow">うれタネ</p>
-            <h2 id="requestsTitle">うれしいことを、タネにする。</h2>
-          </div>
-          <button class="primary-button small" id="addRequestButton" type="button">＋ タネをまく</button>
+        <div class="page-title-row">
+          <div><p class="eyebrow">URETANE</p><h2 id="requestsTitle">タネ一覧</h2></div>
+          <button class="primary-button small" id="addRequestButton" type="button"><span class="plus-mark" aria-hidden="true"></span>タネをまく</button>
         </div>
-
         <div class="segmented" role="tablist" aria-label="うれタネリスト切替">
-          <button class="segment is-active" type="button" role="tab" aria-selected="true" data-request-tab="mine">自分がまいた</button>
-          <button class="segment" type="button" role="tab" aria-selected="false" data-request-tab="partner">届いたタネ</button>
+          <button class="segment is-active" type="button" role="tab" aria-selected="true" data-request-tab="mine"><span class="owner-mark mine-mark" aria-hidden="true"></span>自分がまいた</button>
+          <button class="segment" type="button" role="tab" aria-selected="false" data-request-tab="partner"><span class="owner-mark partner-mark" aria-hidden="true"></span>届いたタネ</button>
         </div>
-
         <div id="minePanel" class="request-panel">
           <div class="panel-actions">
-            <p class="helper">相手に届けたいタネと、自分で育てたいタネをここで管理します。</p>
-            <button class="secondary-button small" id="shareButton" type="button">相手に届ける</button>
+            <p class="helper">相手に届けたいタネと、自分で育てたいタネを管理します。</p>
+            <button class="secondary-button small" id="shareButton" type="button"><span class="send-icon" aria-hidden="true"></span>相手に届ける</button>
           </div>
           <div id="mineList" class="request-list"></div>
         </div>
-
         <div id="partnerPanel" class="request-panel" hidden>
-          <div class="panel-actions">
-            <p class="helper">共有リンクから取り込んだ、相手の「うれしい」が並びます。</p>
-          </div>
+          <div class="panel-actions"><p class="helper">共有リンクから取り込んだ、相手の「うれしい」が並びます。</p></div>
           <div id="partnerList" class="request-list"></div>
         </div>
       </section>
 
       <section class="view" data-view="history" aria-labelledby="historyTitle" hidden>
-        <div class="section-title-row">
-          <div>
-            <p class="eyebrow">咲いた花</p>
-            <h2 id="historyTitle">育てた記録</h2>
+        <div class="page-title-row"><div><p class="eyebrow">GROWTH</p><h2 id="historyTitle">育ち具合</h2></div></div>
+        <section class="growth-card" id="growthCard" aria-label="うれタネの記録" hidden>
+          <div class="growth-visual" aria-hidden="true"><img src="icon-flower.svg" alt=""></div>
+          <div class="growth-copy">
+            <p class="mini-label">今月</p>
+            <h3><span id="monthFlowerCount">0</span>輪の花が咲きました</h3>
+            <div class="growth-progress-row"><span>育てたタネ</span><strong><span id="grownKindsCount">0</span> / <span id="totalKindsCount">0</span></strong></div>
+            <progress class="progress-track" id="growthProgress" max="100" value="0" aria-label="育てたタネの割合">0%</progress>
+            <p class="growth-note">ノルマではなく、どれくらい育ったかをそっと振り返る記録です。</p>
           </div>
-        </div>
-        <p class="page-helper">「育てた！」を押した記録です。同じタネを何度育てても残ります。</p>
+        </section>
+        <div class="history-heading"><h3>咲いた花の記録</h3><p>同じタネを何度育てても残ります。</p></div>
         <div id="historyList" class="history-list"></div>
       </section>
 
       <section class="view" data-view="settings" aria-labelledby="settingsTitle" hidden>
-        <div class="section-title-row">
-          <div>
-            <p class="eyebrow">設定</p>
-            <h2 id="settingsTitle">データとプライバシー</h2>
-          </div>
+        <div class="page-title-row">
+          <div><p class="eyebrow">SETTINGS</p><h2 id="settingsTitle">設定</h2></div>
+          <button class="secondary-button small" type="button" data-nav="home">ホームへ</button>
         </div>
-
         <article class="settings-card">
           <h3>このアプリの保存方法</h3>
           <p>うれタネ・履歴・設定は、このブラウザの端末内（localStorage）に保存します。外部サーバーへの送信やアクセス解析は行いません。</p>
         </article>
-
         <article class="settings-card">
-          <h3>共有について</h3>
-          <p>相手に届けるタネだけを暗号化し、URLの <code>#</code> 以降に入れます。通常この部分はWebサーバーへ送信されません。ただし、共有リンクを知っている人は内容を開けるため、秘密情報は登録しないでください。</p>
-          <ul>
-            <li>パスワード、カード番号、認証情報は登録しない</li>
-            <li>住所・本名など重要な個人情報は必要以上に書かない</li>
-            <li>共有前に送る内容を確認する</li>
-          </ul>
+          <details class="settings-details">
+            <summary>共有について <span>共有リンクの安全な使い方</span></summary>
+            <div class="details-body">
+              <p>相手に届けるタネだけを暗号化し、URLの <code>#</code> 以降に入れます。通常この部分はWebサーバーへ送信されません。ただし、共有リンクを知っている人は内容を開けるため、秘密情報は登録しないでください。</p>
+              <ul><li>パスワード、カード番号、認証情報は登録しない</li><li>住所・本名など重要な個人情報は必要以上に書かない</li><li>共有前に送る内容を確認する</li></ul>
+            </div>
+          </details>
         </article>
-
         <article class="settings-card danger-card">
           <h3>全データを初期化</h3>
           <p>自分がまいたタネ、届いたタネ、育てた記録、端末識別用IDをこの端末から削除します。元には戻せません。</p>
           <button class="danger-button" id="resetButton" type="button">すべて初期化する</button>
         </article>
-
-        <p class="version">Prototype 003 / Ver.0.2</p>
+        <p class="version">Prototype 003 / Ver.0.5</p>
       </section>
     </main>
 
-    <nav class="bottom-nav" aria-label="メインナビゲーション">
-      <button class="nav-button is-active" type="button" data-nav="home"><span>⌂</span><small>ホーム</small></button>
-      <button class="nav-button" type="button" data-nav="requests"><span>🌱</span><small>うれタネ</small></button>
-      <button class="nav-button" type="button" data-nav="history"><span>🌼</span><small>記録</small></button>
-      <button class="nav-button" type="button" data-nav="settings"><span>⚙</span><small>設定</small></button>
+    <nav class="bottom-nav" id="bottomNav" aria-label="メインナビゲーション" hidden>
+      <button class="nav-button is-active" type="button" data-nav="home"><span class="nav-symbol nav-today" aria-hidden="true"></span><small>今日</small></button>
+      <button class="nav-button" type="button" data-nav="requests"><span class="nav-symbol nav-list" aria-hidden="true"></span><small>タネ一覧</small></button>
+      <button class="nav-button" type="button" data-nav="history"><span class="nav-symbol nav-bloom" aria-hidden="true"></span><small>育ち具合</small></button>
     </nav>
   </div>
 
-  <dialog id="requestDialog" class="modal">
+  <dialog id="requestDialog" class="modal sow-modal">
     <form method="dialog" id="requestForm">
-      <div class="modal-header">
-        <div>
-          <p class="eyebrow">うれタネ</p>
-          <h2 id="requestDialogTitle">タネをまく</h2>
-        </div>
-        <button class="close-button" value="cancel" type="submit" aria-label="閉じる">×</button>
+      <div class="modal-header sow-header">
+        <button class="plain-close" value="cancel" type="submit">とじる</button>
+        <h2 id="requestDialogTitle">タネをまく</h2><span class="header-spacer" aria-hidden="true"></span>
       </div>
-
       <input type="hidden" id="editingId">
-
       <label class="field">
-        <span>どんなことがうれしい？</span>
-        <textarea id="requestText" maxlength="120" rows="3" required placeholder="例：帰りに甘いものを買ってきてもらえたらうれしい"></textarea>
-        <small><span id="charCount">0</span>/120</small>
+        <span>どんなことが、うれしい？ <small class="field-hint">短く一言で</small></span>
+        <textarea id="requestText" maxlength="120" rows="3" required placeholder="例：帰りに甘いものを買ってきてもらえたら"></textarea>
+        <small class="char-counter"><span id="charCount">0</span>/120</small>
       </label>
-
       <fieldset class="field">
-        <legend>このタネは？</legend>
-        <div class="choice-grid two">
-          <label class="choice-card">
-            <input type="radio" name="executor" value="partner" checked>
-            <span><strong>相手に届ける</strong><small>相手が育てるタネ</small></span>
-          </label>
-          <label class="choice-card">
-            <input type="radio" name="executor" value="self">
-            <span><strong>自分で育てる</strong><small>自分用のタネ</small></span>
-          </label>
-        </div>
-      </fieldset>
-
-      <fieldset class="field">
-        <legend>いつ頃うれしい？</legend>
+        <legend>いつ、うれしい？</legend>
         <div class="choice-grid three">
-          <label class="choice-card">
-            <input type="radio" name="urgency" value="today" checked>
-            <span><strong>今日</strong><small>今日だとうれしい</small></span>
-          </label>
-          <label class="choice-card">
-            <input type="radio" name="urgency" value="soon">
-            <span><strong>近々</strong><small>今週くらい</small></span>
-          </label>
-          <label class="choice-card">
-            <input type="radio" name="urgency" value="anytime">
-            <span><strong>いつでも</strong><small>タイミング自由</small></span>
-          </label>
+          <label class="choice-card urgency-choice today-choice"><input type="radio" name="urgency" value="today" checked><span><i aria-hidden="true"></i><strong>今日</strong><small>今日だとうれしい</small></span></label>
+          <label class="choice-card urgency-choice soon-choice"><input type="radio" name="urgency" value="soon"><span><i aria-hidden="true"></i><strong>近々</strong><small>今週くらい</small></span></label>
+          <label class="choice-card urgency-choice anytime-choice"><input type="radio" name="urgency" value="anytime"><span><i aria-hidden="true"></i><strong>いつでも</strong><small>タイミング自由</small></span></label>
         </div>
       </fieldset>
-
-      <div class="modal-actions">
-        <button class="secondary-button" value="cancel" type="submit">キャンセル</button>
-        <button class="primary-button" id="saveRequestButton" type="button">タネを保存</button>
-      </div>
+      <fieldset class="field">
+        <legend>だれの、うれしい？</legend>
+        <div class="choice-grid two">
+          <label class="choice-card owner-choice partner-choice"><input type="radio" name="executor" value="partner" checked><span><i class="owner-mark partner-mark" aria-hidden="true"></i><strong>相手に届ける</strong><small>相手が育てるタネ</small></span></label>
+          <label class="choice-card owner-choice self-choice"><input type="radio" name="executor" value="self"><span><i class="seed-icon tiny" aria-hidden="true"></i><strong>自分で育てる</strong><small>自分用のタネ</small></span></label>
+        </div>
+      </fieldset>
+      <div class="modal-actions"><button class="secondary-button" value="cancel" type="submit">キャンセル</button><button class="primary-button" id="saveRequestButton" type="button">タネを保存</button></div>
     </form>
   </dialog>
 
   <dialog id="shareDialog" class="modal">
-    <div class="modal-header">
-      <div>
-        <p class="eyebrow">共有前確認</p>
-        <h2>相手に届けるうれタネ</h2>
-      </div>
-      <button class="close-button" id="closeShareDialog" type="button" aria-label="閉じる">×</button>
-    </div>
+    <div class="modal-header"><div><p class="eyebrow">共有前確認</p><h2>相手に届けるうれタネ</h2></div><button class="close-button" id="closeShareDialog" type="button" aria-label="閉じる">×</button></div>
     <p class="helper">「相手に届ける」と登録したタネだけを共有します。自分用のタネは含まれません。</p>
     <div id="sharePreview" class="share-preview"></div>
-    <div class="modal-actions stack-mobile">
-      <button class="secondary-button" id="copyShareButton" type="button">リンクをコピー</button>
-      <button class="primary-button" id="nativeShareButton" type="button">相手に届ける</button>
-    </div>
+    <div class="modal-actions stack-mobile"><button class="secondary-button" id="copyShareButton" type="button">リンクをコピー</button><button class="primary-button" id="nativeShareButton" type="button">相手に届ける</button></div>
     <p class="status-message" id="shareStatus" role="status"></p>
   </dialog>
 
   <dialog id="importDialog" class="modal">
-    <div class="modal-header">
-      <div>
-        <p class="eyebrow">うれタネが届きました</p>
-        <h2>届いたタネを取り込む</h2>
-      </div>
-      <button class="close-button" id="closeImportDialog" type="button" aria-label="閉じる">×</button>
-    </div>
-    <p class="helper" id="importSummary"></p>
-    <div id="importPreview" class="share-preview"></div>
-    <div class="modal-actions">
-      <button class="secondary-button" id="cancelImportButton" type="button">あとで</button>
-      <button class="primary-button" id="importButton" type="button">取り込む</button>
-    </div>
+    <div class="modal-header"><div><p class="eyebrow">うれタネが届きました</p><h2>届いたタネを取り込む</h2></div><button class="close-button" id="closeImportDialog" type="button" aria-label="閉じる">×</button></div>
+    <p class="helper" id="importSummary"></p><div id="importPreview" class="share-preview"></div>
+    <div class="modal-actions"><button class="secondary-button" id="cancelImportButton" type="button">あとで</button><button class="primary-button" id="importButton" type="button">取り込む</button></div>
     <p class="status-message" id="importStatus" role="status"></p>
   </dialog>
 
   <dialog id="resetDialog" class="modal">
-    <div class="modal-header">
-      <div>
-        <p class="eyebrow danger-text">注意</p>
-        <h2>すべて初期化しますか？</h2>
-      </div>
-      <button class="close-button" id="closeResetDialog" type="button" aria-label="閉じる">×</button>
-    </div>
+    <div class="modal-header"><div><p class="eyebrow danger-text">注意</p><h2>すべて初期化しますか？</h2></div><button class="close-button" id="closeResetDialog" type="button" aria-label="閉じる">×</button></div>
     <p>この端末のうれタネ・育てた記録・設定をすべて削除します。元には戻せません。</p>
-    <div class="modal-actions">
-      <button class="secondary-button" id="cancelResetButton" type="button">キャンセル</button>
-      <button class="danger-button" id="confirmResetButton" type="button">初期化する</button>
-    </div>
+    <div class="modal-actions"><button class="secondary-button" id="cancelResetButton" type="button">キャンセル</button><button class="danger-button" id="confirmResetButton" type="button">初期化する</button></div>
   </dialog>
 
   <dialog id="completionDialog" class="modal completion-modal">
-    <div class="completion-mark" aria-hidden="true">🌼</div>
-    <div class="completion-copy">
-      <p class="eyebrow">うれタネを育てました</p>
-      <h2>花がひとつ咲きました</h2>
-      <p id="completionText" class="helper"></p>
-    </div>
-    <div class="modal-actions stack-mobile">
-      <button class="secondary-button" id="closeCompletionButton" type="button">閉じる</button>
-      <button class="primary-button" id="shareCompletionButton" type="button">相手に伝える</button>
-    </div>
+    <div class="completion-mark" aria-hidden="true"><img src="icon-flower.svg" alt=""></div>
+    <div class="completion-copy"><p class="eyebrow">うれタネを育てました</p><h2>花がひとつ咲きました</h2><p id="completionText" class="helper"></p></div>
+    <div class="modal-actions stack-mobile"><button class="secondary-button" id="closeCompletionButton" type="button">閉じる</button><button class="primary-button" id="shareCompletionButton" type="button">LINEなどで伝える</button></div>
   </dialog>
 
-  <div class="bloom-overlay" id="bloomOverlay" aria-hidden="true" hidden>
-    <div class="bloom-scene">
-      <div class="bloom-sprout">🌱</div>
-      <div class="bloom-flower">🌼</div>
-      <p>花がひとつ咲きました</p>
-    </div>
-  </div>
-
+  <div class="bloom-overlay" id="bloomOverlay" aria-hidden="true" hidden><div class="bloom-scene"><img src="icon-flower.svg" alt="" class="bloom-flower-image"><p>花がひとつ咲きました</p></div></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-
   <script src="app.js" defer></script>
 </body>
 </html>
