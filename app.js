@@ -5,6 +5,7 @@ const LEGACY_STORAGE_KEY = 'shitehoshii.v1';
 const MAX_TEXT_LENGTH = 120;
 const MAX_SHARED_ITEMS = 100;
 const MAX_SHARE_HASH_LENGTH = 60000;
+const MAX_SENDER_NAME_LENGTH = 20;
 
 const urgencyMeta = {
   today: { label: '今日', className: 'urgency-today', weight: 3 },
@@ -15,6 +16,7 @@ const urgencyMeta = {
 const defaultState = () => ({
   schemaVersion: 1,
   deviceId: crypto.randomUUID(),
+  senderName: '',
   myItems: [],
   partnerItems: [],
   history: []
@@ -47,12 +49,9 @@ const elements = {
   nextStepCard: $('nextStepCard'),
   nextStepShareButton: $('nextStepShareButton'),
   growthCard: $('growthCard'),
-  growthSummaryImage: $('growthSummaryImage'),
   growthSeedsList: $('growthSeedsList'),
+  monthWaterCount: $('monthWaterCount'),
   monthFlowerCount: $('monthFlowerCount'),
-  grownKindsCount: $('grownKindsCount'),
-  totalKindsCount: $('totalKindsCount'),
-  growthProgress: $('growthProgress'),
   addRequestButton: $('addRequestButton'),
   requestDialog: $('requestDialog'),
   requestForm: $('requestForm'),
@@ -92,6 +91,9 @@ const elements = {
   importButton: $('importButton'),
   cancelImportButton: $('cancelImportButton'),
   closeImportDialog: $('closeImportDialog'),
+  senderName: $('senderName'),
+  saveSenderNameButton: $('saveSenderNameButton'),
+  senderNameStatus: $('senderNameStatus'),
   resetButton: $('resetButton'),
   resetDialog: $('resetDialog'),
   confirmResetButton: $('confirmResetButton'),
@@ -101,6 +103,7 @@ const elements = {
   partnerHero: $('partnerHero'),
   selfHero: $('selfHero'),
   partnerCount: $('partnerCount'),
+  partnerSourceLabel: $('partnerSourceLabel'),
   selfCount: $('selfCount'),
   partnerMissionEmpty: $('partnerMissionEmpty'),
   partnerMissionCard: $('partnerMissionCard'),
@@ -125,6 +128,7 @@ const elements = {
   bloomOverlay: $('bloomOverlay'),
   growthFeedbackImage: $('growthFeedbackImage'),
   growthFeedbackText: $('growthFeedbackText'),
+  growthFeedbackHint: $('growthFeedbackHint'),
   toast: $('toast')
 };
 
@@ -137,6 +141,7 @@ function loadState() {
     return {
       schemaVersion: 1,
       deviceId: typeof parsed.deviceId === 'string' ? parsed.deviceId : crypto.randomUUID(),
+      senderName: normalizeSenderName(parsed.senderName),
       myItems: Array.isArray(parsed.myItems) ? parsed.myItems.filter(isValidLocalItem).map(normalizeItem) : [],
       partnerItems: Array.isArray(parsed.partnerItems) ? parsed.partnerItems.filter(isValidPartnerItem).map(normalizeItem) : [],
       history: Array.isArray(parsed.history) ? parsed.history.filter(isValidHistoryItem).slice(0, 500) : []
@@ -170,6 +175,33 @@ function isSafeText(value) {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= MAX_TEXT_LENGTH;
 }
 
+function normalizeSenderName(value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > MAX_SENDER_NAME_LENGTH) return '';
+  return trimmed;
+}
+
+function sourceLabel(name, fallback = '届いたタネ') {
+  const normalized = normalizeSenderName(name);
+  return normalized ? `${normalized}から` : fallback;
+}
+
+function saveSenderName() {
+  const value = elements.senderName.value.trim();
+  if (value.length > MAX_SENDER_NAME_LENGTH) {
+    elements.senderNameStatus.textContent = `呼び名は${MAX_SENDER_NAME_LENGTH}文字以内にしてください。`;
+    elements.senderName.focus();
+    return;
+  }
+  state.senderName = normalizeSenderName(value);
+  saveState();
+  elements.senderName.value = state.senderName;
+  elements.senderNameStatus.textContent = state.senderName
+    ? `「${state.senderName}」で保存しました。次回の共有から自動で使います。`
+    : '呼び名を未設定にしました。共有時は名前なしで届きます。';
+}
+
 function normalizeCompletionLimit(value) {
   if (value === null) return null;
   if (Number.isInteger(value) && value >= 1 && value <= 99) return value;
@@ -177,7 +209,11 @@ function normalizeCompletionLimit(value) {
 }
 
 function normalizeItem(item) {
-  const normalized = { ...item, completionLimit: normalizeCompletionLimit(item.completionLimit) };
+  const normalized = {
+    ...item,
+    completionLimit: normalizeCompletionLimit(item.completionLimit),
+    sourceName: normalizeSenderName(item.sourceName)
+  };
   if (normalized.executor === 'partner') {
     normalized.deliveryStatus = normalized.deliveryStatus === 'sent' ? 'sent' : 'draft';
     if (typeof normalized.sentAt !== 'string') delete normalized.sentAt;
@@ -251,20 +287,33 @@ function getGrowthInfo(item, kind) {
     detail = `${Math.min(stats.count, stats.limit)} / ${stats.limit}`;
   }
 
-  let subline;
+  let statusLine;
+  let remainingLine = '';
   if (stats.limit === null) {
-    subline = stats.completedToday ? '今日は水をあげました' : '同じタネに水をあげられるのは1日1回まで';
+    statusLine = stats.completedToday
+      ? '今日は水をあげました'
+      : (stats.completions.length ? `これまで${stats.count}回、水をあげました` : 'まだ水をあげていません');
   } else if (stats.limitReached) {
-    subline = 'このタネは咲ききりました';
-  } else if (stats.completedToday) {
-    subline = `今日は水をあげました（あと${Math.max((stats.limit ?? 0) - stats.count, 0)}回）`;
-  } else if (stats.completions.length) {
-    subline = `あと${Math.max((stats.limit ?? 0) - stats.count, 0)}回で花が咲きます`;
+    statusLine = 'このタネは花が咲きました';
   } else {
-    subline = stats.limit === 1 ? '水をあげると花が咲きます' : `あと${Math.max((stats.limit ?? 0) - stats.count, 0)}回で花が咲きます`;
+    const remaining = Math.max(stats.limit - stats.count, 0);
+    if (stats.completedToday) statusLine = '今日は水をあげました';
+    else if (stats.completions.length) statusLine = `最後 ${formatDate(stats.completions[0].completedAt)}`;
+    else statusLine = 'まだ水をあげていません';
+
+    remainingLine = `開花まで あと${remaining}回`;
   }
 
-  return { ...stats, stage, icon: growthIconMap[stage], label, detail, subline };
+  return {
+    ...stats,
+    stage,
+    icon: growthIconMap[stage],
+    label,
+    detail,
+    statusLine,
+    remainingLine,
+    subline: statusLine
+  };
 }
 
 
@@ -307,6 +356,7 @@ function setView(name) {
 }
 
 function renderAll() {
+  renderSettings();
   renderMyList();
   renderPartnerList();
   renderHistory();
@@ -314,6 +364,13 @@ function renderAll() {
   renderSummary();
   renderMission('partner');
   renderMission('self');
+}
+
+function renderSettings() {
+  if (!elements.senderName) return;
+  if (document.activeElement !== elements.senderName) {
+    elements.senderName.value = state.senderName || '';
+  }
 }
 
 function renderMyList() {
@@ -448,8 +505,8 @@ function createRequestCard(item, type) {
     metaLeft.append(typeChip);
   } else {
     const typeChip = document.createElement('span');
-    typeChip.className = 'type-chip type-partner';
-    typeChip.textContent = '届いたタネ';
+    typeChip.className = 'type-chip type-partner source-chip';
+    typeChip.textContent = sourceLabel(item.sourceName);
     metaLeft.append(typeChip);
   }
 
@@ -510,8 +567,14 @@ function createRequestCard(item, type) {
     const growthMeta = document.createElement('span');
     growthMeta.textContent = growth.detail;
     const growthSub = document.createElement('small');
-    growthSub.textContent = growth.subline;
+    growthSub.textContent = growth.statusLine;
     growthText.append(growthTitle, growthMeta, growthSub);
+    if (growth.remainingLine) {
+      const remaining = document.createElement('b');
+      remaining.className = 'growth-remaining-small';
+      remaining.textContent = growth.remainingLine;
+      growthText.append(remaining);
+    }
 
     growthRow.append(growthIcon, growthText);
     card.append(growthRow);
@@ -545,8 +608,8 @@ function renderHistory() {
     left.className = 'meta-left';
     left.append(createUrgencyChip(item.urgency));
     const kind = document.createElement('span');
-    kind.className = `type-chip ${item.kind === 'partner' ? 'type-partner' : 'type-self'}`;
-    kind.textContent = item.kind === 'partner' ? '届いたタネ' : '自分のタネ';
+    kind.className = `type-chip ${item.kind === 'partner' ? 'type-partner source-chip' : 'type-self'}`;
+    kind.textContent = item.kind === 'partner' ? sourceLabel(item.sourceName) : '自分のタネ';
     left.append(kind);
 
     const date = document.createElement('span');
@@ -564,7 +627,7 @@ function renderHistory() {
 function renderGrowthSeeds() {
   elements.growthSeedsList.replaceChildren();
   const items = [
-    ...state.partnerItems.map((item) => ({ item, kind: 'partner', source: '届いたタネ' })),
+    ...state.partnerItems.map((item) => ({ item, kind: 'partner', source: sourceLabel(item.sourceName) })),
     ...state.myItems.filter((item) => item.executor === 'self').map((item) => ({ item, kind: 'self', source: '自分のタネ' }))
   ].sort((a, b) => sortItems(a.item, b.item));
 
@@ -599,10 +662,6 @@ function renderGrowthSeeds() {
     typeChip.className = `type-chip ${kind === 'partner' ? 'type-partner' : 'type-self'}`;
     typeChip.textContent = source;
     chips.append(typeChip);
-    const repeatChip = document.createElement('span');
-    repeatChip.className = 'repeat-chip';
-    repeatChip.textContent = repeatLabel(item);
-    chips.append(repeatChip);
     top.append(chips);
 
     const title = document.createElement('h4');
@@ -612,13 +671,18 @@ function renderGrowthSeeds() {
     const strong = document.createElement('strong');
     strong.textContent = growth.label;
     const count = document.createElement('span');
+    count.className = 'growth-count';
     count.textContent = growth.detail;
     stateLine.append(strong, count);
     const note = document.createElement('p');
     note.className = 'growth-seed-note';
-    note.textContent = growth.subline;
+    note.textContent = growth.statusLine;
+    const remaining = document.createElement('p');
+    remaining.className = 'growth-remaining';
+    remaining.textContent = growth.remainingLine;
+    remaining.hidden = !growth.remainingLine;
 
-    body.append(top, title, stateLine, note);
+    body.append(top, title, stateLine, note, remaining);
     card.append(visual, body);
     elements.growthSeedsList.append(card);
   });
@@ -640,23 +704,16 @@ function renderSummary() {
   const weekday = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][now.getDay()];
   elements.dateLabel.textContent = `${now.getMonth() + 1}/${now.getDate()} ${weekday}`;
 
-  const monthFlowers = state.history.filter((item) => {
+  const monthHistory = state.history.filter((item) => {
     const date = new Date(item.completedAt);
-    return !Number.isNaN(date.getTime()) && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && isBloomHistoryEntry(item);
-  }).length;
-  const availableIds = new Set(visibleItems.map((item) => item.id));
-  const grownIds = new Set(state.history.filter((item) => availableIds.has(item.sourceItemId)).map((item) => item.sourceItemId));
-  const totalKinds = visibleItems.length;
-  const grownKinds = grownIds.size;
-  const progress = totalKinds ? Math.round((grownKinds / totalKinds) * 100) : 0;
+    return !Number.isNaN(date.getTime()) && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+  });
+  const monthWaterings = monthHistory.length;
+  const monthFlowers = monthHistory.filter((item) => isBloomHistoryEntry(item)).length;
 
+  elements.monthWaterCount.textContent = String(monthWaterings);
   elements.monthFlowerCount.textContent = String(monthFlowers);
   elements.homeFlowerCount.textContent = String(monthFlowers);
-  elements.grownKindsCount.textContent = String(grownKinds);
-  elements.totalKindsCount.textContent = String(totalKinds);
-  elements.growthProgress.value = progress;
-  elements.growthProgress.textContent = `${progress}%`;
-  elements.growthSummaryImage.src = growthIconMap[getGrowthStage(grownKinds, totalKinds || 1)];
 
   // 初回はプロトタイプと同じく「まず1つまく」だけに集中させる。
   elements.onboardingCard.hidden = hasAnySeeds;
@@ -702,6 +759,9 @@ function renderMission(kind) {
   }
 
   if (!item) {
+    if (isPartner && elements.partnerSourceLabel) {
+      elements.partnerSourceLabel.textContent = '届いた、うれしいこと';
+    }
     empty.hidden = false;
     card.hidden = true;
     drawButton.hidden = allSource.length > 0;
@@ -726,6 +786,12 @@ function renderMission(kind) {
   chip.className = `urgency-chip ${urgencyMeta[item.urgency].className}`;
   chip.textContent = urgencyMeta[item.urgency].label;
   text.textContent = item.text;
+  if (isPartner && elements.partnerSourceLabel) {
+    const name = normalizeSenderName(item.sourceName);
+    elements.partnerSourceLabel.textContent = name
+      ? `${name}から届いた、うれしいこと`
+      : '届いた、うれしいこと';
+  }
   const growth = getGrowthInfo(item, kind);
   const growthIcon = isPartner ? elements.partnerMissionGrowthIcon : elements.selfMissionGrowthIcon;
   growthIcon.src = growth.icon;
@@ -736,8 +802,16 @@ function drawMission(kind) {
   const allSource = kind === 'partner' ? state.partnerItems : state.myItems.filter((item) => item.executor === 'self');
   const source = getAvailableItems(allSource, kind);
   if (!source.length) return;
-  const selectedPool = getPriorityPool(source);
-  const selected = selectedPool[Math.floor(Math.random() * selectedPool.length)];
+
+  const currentId = kind === 'partner' ? currentPartnerMissionId : currentSelfMissionId;
+  const priorityPool = getPriorityPool(source);
+
+  // 「別のタネ」を押したのに同じタネが再選択されないようにする。
+  let candidates = priorityPool.filter((item) => item.id !== currentId);
+  if (!candidates.length) candidates = source.filter((item) => item.id !== currentId);
+  if (!candidates.length) candidates = source;
+
+  const selected = candidates[Math.floor(Math.random() * candidates.length)];
   if (kind === 'partner') currentPartnerMissionId = selected.id;
   else currentSelfMissionId = selected.id;
   renderMission(kind);
@@ -777,6 +851,7 @@ function completeMission(kind) {
     text: item.text,
     urgency: item.urgency,
     kind,
+    sourceName: isPartner ? normalizeSenderName(item.sourceName) : '',
     completedAt: nowIso(),
     bloomed
   });
@@ -1040,6 +1115,7 @@ async function createEncryptedShareUrl(items) {
   const payload = {
     v: 1,
     sourceId: state.deviceId,
+    sourceName: normalizeSenderName(state.senderName),
     generatedAt: nowIso(),
     mode: 'merge',
     items: items.slice(0, MAX_SHARED_ITEMS).map((item) => ({
@@ -1211,6 +1287,7 @@ function validateSharePayload(payload) {
   }
   return {
     sourceId: payload.sourceId,
+    sourceName: normalizeSenderName(payload.sourceName),
     generatedAt: typeof payload.generatedAt === 'string' ? payload.generatedAt : nowIso(),
     mode: payload.mode === 'merge' ? 'merge' : 'snapshot',
     items
@@ -1222,11 +1299,17 @@ function showImportDialog(payload) {
   const existing = state.partnerItems.filter((item) => item.sourceId === payload.sourceId);
   const newIds = new Set(payload.items.map((item) => item.id));
   const addCount = payload.items.filter((item) => !existing.some((old) => old.id === item.id)).length;
-  const updateCount = payload.items.filter((item) => existing.some((old) => old.id === item.id && (old.text !== item.text || old.urgency !== item.urgency || normalizeCompletionLimit(old.completionLimit) !== normalizeCompletionLimit(item.completionLimit)))).length;
+  const updateCount = payload.items.filter((item) => existing.some((old) => old.id === item.id && (
+    old.text !== item.text
+    || old.urgency !== item.urgency
+    || normalizeCompletionLimit(old.completionLimit) !== normalizeCompletionLimit(item.completionLimit)
+    || normalizeSenderName(old.sourceName) !== normalizeSenderName(payload.sourceName)
+  ))).length;
   const removeCount = payload.mode === 'snapshot' ? existing.filter((item) => !newIds.has(item.id)).length : 0;
+  const fromText = payload.sourceName ? `${payload.sourceName}から / ` : '';
   elements.importSummary.textContent = payload.mode === 'merge'
-    ? `受信 ${payload.items.length}件 / 追加 ${addCount}件 / 更新 ${updateCount}件`
-    : `受信 ${payload.items.length}件 / 追加 ${addCount}件 / 更新 ${updateCount}件 / 削除 ${removeCount}件`;
+    ? `${fromText}受信 ${payload.items.length}件 / 追加 ${addCount}件 / 更新 ${updateCount}件`
+    : `${fromText}受信 ${payload.items.length}件 / 追加 ${addCount}件 / 更新 ${updateCount}件 / 削除 ${removeCount}件`;
   elements.importStatus.textContent = '取り込むまで、この端末のデータは変更されません。';
   elements.importDialog.showModal();
 }
@@ -1234,10 +1317,12 @@ function showImportDialog(payload) {
 function importPendingShare() {
   if (!pendingImport) return;
   const sourceId = pendingImport.sourceId;
+  const sourceName = normalizeSenderName(pendingImport.sourceName);
   const importedAt = nowIso();
   const incoming = pendingImport.items.map((item) => ({
     id: item.id,
     sourceId,
+    sourceName,
     text: item.text,
     urgency: item.urgency,
     completionLimit: normalizeCompletionLimit(item.completionLimit),
@@ -1292,22 +1377,38 @@ function resetAllData() {
   showToast('この端末のうれタネを初期化しました。');
 }
 
+function hideGrowthFeedback() {
+  clearTimeout(bloomTimer);
+  elements.bloomOverlay.hidden = true;
+  elements.bloomOverlay.classList.remove('is-growth-step', 'is-bloom');
+  document.body.classList.remove('feedback-open');
+}
+
 function showGrowthFeedback(growth, bloomed = false) {
   clearTimeout(bloomTimer);
+  hideToast();
   elements.growthFeedbackImage.src = growth.icon;
   elements.growthFeedbackImage.alt = growth.label;
   elements.growthFeedbackText.textContent = bloomed ? '花がひとつ咲きました' : growth.label;
+  elements.growthFeedbackHint.textContent = bloomed ? 'タップで閉じる' : 'タップで閉じる';
+  elements.bloomOverlay.classList.toggle('is-growth-step', !bloomed);
+  elements.bloomOverlay.classList.toggle('is-bloom', bloomed);
   elements.bloomOverlay.hidden = false;
-  bloomTimer = setTimeout(() => {
-    elements.bloomOverlay.hidden = true;
-  }, bloomed ? 1650 : 1150);
+  document.body.classList.add('feedback-open');
+  bloomTimer = setTimeout(hideGrowthFeedback, bloomed ? 1800 : 1150);
+}
+
+function hideToast() {
+  clearTimeout(toastTimer);
+  toastTimer = null;
+  elements.toast.hidden = true;
 }
 
 function showToast(message) {
   clearTimeout(toastTimer);
   elements.toast.textContent = message;
   elements.toast.hidden = false;
-  toastTimer = setTimeout(() => { elements.toast.hidden = true; }, 3000);
+  toastTimer = setTimeout(hideToast, 2000);
 }
 
 function attachEvents() {
@@ -1363,6 +1464,15 @@ function attachEvents() {
     elements.completionDialog.close();
   });
   elements.shareCompletionButton.addEventListener('click', shareCompletion);
+  elements.bloomOverlay.addEventListener('click', hideGrowthFeedback);
+
+  elements.saveSenderNameButton.addEventListener('click', saveSenderName);
+  elements.senderName.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      saveSenderName();
+    }
+  });
 
   elements.resetButton.addEventListener('click', () => elements.resetDialog.showModal());
   elements.confirmResetButton.addEventListener('click', resetAllData);

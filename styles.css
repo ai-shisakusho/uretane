@@ -60,3 +60,221 @@ main{padding:0 20px 24px}.view{display:grid;gap:18px}.home-view{min-height:calc(
 .share-select-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:12px}.share-select-item{position:relative;display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;padding:13px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 1px #E9EFE1;cursor:pointer}.share-select-item input{position:absolute;opacity:0;pointer-events:none}.share-check{width:22px;height:22px;margin-top:1px;border-radius:7px;box-shadow:inset 0 0 0 1.5px var(--line);background:#fff;position:relative}.share-select-item input:checked+.share-check{background:var(--deep);box-shadow:none}.share-select-item input:checked+.share-check:after{content:'';position:absolute;left:6px;top:3px;width:7px;height:12px;border-right:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(45deg)}.share-select-body{display:grid;gap:7px;min-width:0}.share-select-body>strong{font-size:13px;line-height:1.55;color:var(--text);overflow-wrap:anywhere}.share-select-meta{display:flex;gap:6px;flex-wrap:wrap}
 .bloom-overlay .bloom-flower-image{object-fit:contain}
 @media(max-width:420px){.mission-growth-row{grid-template-columns:58px 1fr;gap:10px}.mission-growth-icon{width:54px;height:54px}.self-mission{align-items:flex-start}.self-mission-actions{padding-top:4px}}
+
+
+/* Ver.0.9: compact home, lighter monthly stats, sticky save actions */
+.home-view,.home-content{align-content:start}
+.home-content{gap:16px}
+.self-seed-card{padding:15px 16px;border-radius:20px}
+.self-seed-head{gap:9px}
+.self-seed-head h3{font-size:15px}
+.self-mission{margin-top:10px;align-items:center;gap:10px}
+.self-mission-main{gap:8px}
+.self-mission-main .mission-growth-icon.small{width:38px;height:38px;flex:0 0 38px}
+.self-mission-text{margin-top:5px;font-size:13px;line-height:1.45}
+.self-mission-actions{gap:1px}
+.self-mission-actions .text-action{padding:3px 0}
+
+.month-stats-card{padding:16px 18px;border-radius:20px;background:rgba(255,255,255,.72);box-shadow:var(--shadow-soft)}
+.month-stats-card>.mini-label{margin-bottom:10px}
+.month-stats-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.month-stat{min-width:0;display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:16px;background:#fff}
+.month-stat-icon{flex:0 0 auto;margin-right:0}
+.month-stat.water-stat{color:var(--deep)}
+.month-stat.bloom-stat{color:var(--bloom-deep)}
+.month-stat .mini-flower-icon{width:22px;height:22px}
+.month-stat>div{display:flex;align-items:baseline;gap:4px;min-width:0}
+.month-stat strong{font-family:ui-rounded,"Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;font-size:22px;line-height:1}
+.month-stat span:last-child{color:var(--muted);font-size:11px;white-space:nowrap}
+
+/* Registration dialog scrolls while the primary actions remain reachable. */
+.sow-modal{padding:0;overflow:hidden}
+.sow-modal form{max-height:min(88vh,720px);overflow:auto;overscroll-behavior:contain;padding:22px 22px 0;scrollbar-gutter:stable}
+.sow-modal .modal-actions{position:sticky;bottom:0;z-index:8;margin:0 -22px;padding:14px 22px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(247,250,241,.86),var(--surface) 26%);box-shadow:0 -12px 24px rgba(63,91,60,.08)}
+
+/* Intermediate growth is a short, lightweight feedback card. Bloom keeps the full celebration. */
+.bloom-overlay.is-growth-step{place-items:end center;background:transparent;backdrop-filter:none;padding:24px 22px calc(106px + env(safe-area-inset-bottom));pointer-events:none}
+.bloom-overlay.is-growth-step .bloom-scene{width:min(100%,330px);flex-direction:row;justify-content:center;gap:12px;padding:13px 18px;border-radius:22px;background:rgba(255,253,247,.96);box-shadow:0 12px 34px rgba(63,91,60,.18);animation:growth-toast-in .28s ease-out both}
+.bloom-overlay.is-growth-step .bloom-flower-image{width:58px;height:58px;animation:growth-icon-pop .34s cubic-bezier(.2,.9,.25,1) both}
+.bloom-overlay.is-growth-step .bloom-scene p{font-size:16px;color:var(--deep)}
+.bloom-overlay.is-bloom{background:rgba(255,250,240,.90);backdrop-filter:blur(7px)}
+@keyframes growth-toast-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes growth-icon-pop{from{opacity:0;transform:scale(.75)}to{opacity:1;transform:scale(1)}}
+
+@media(max-width:420px){
+  .home-content{gap:14px}
+  .self-seed-card{padding:14px}
+  .month-stats-card{padding:14px}
+  .month-stat{padding:10px}
+  .month-stat strong{font-size:20px}
+  .sow-modal form{max-height:92dvh;padding:18px 18px 0}
+  .sow-modal .modal-actions{margin:0 -18px;padding:12px 18px calc(12px + env(safe-area-inset-bottom))}
+}
+@media(max-width:350px){
+  .month-stats-grid{grid-template-columns:1fr}
+}
+
+
+/* Ver.0.10: clearer remaining count, skippable growth feedback, multi-seed-safe compact layout */
+.growth-remaining{margin:5px 0 0;color:var(--deep);font-size:13px;font-weight:800;line-height:1.45}
+.growth-remaining-small{display:block;margin-top:2px;color:var(--deep);font-size:11px;font-weight:800;line-height:1.45}
+.growth-seed-note{margin-bottom:0}
+
+/* The self card grows only with its actual contents. Multiple seeds are represented by the count + reroll action. */
+.self-seed-card{min-height:0;height:auto}
+.self-mission{min-height:0}
+.self-mission-main{min-height:0}
+
+/* Keep the feedback layer strictly viewport-sized so the underlying page does not peek through. */
+body.feedback-open{height:100dvh;overflow:hidden}
+body.feedback-open .app-shell{height:100dvh;min-height:100dvh;overflow:hidden}
+.bloom-overlay{width:100vw;height:100dvh;min-height:100dvh;max-height:100dvh;overflow:hidden;cursor:pointer;touch-action:manipulation}
+.bloom-overlay.is-growth-step{pointer-events:auto;place-items:center;background:#FFF9F0;padding:24px;backdrop-filter:none}
+.bloom-overlay.is-growth-step .bloom-scene{width:min(100%,320px);flex-direction:column;gap:10px;padding:22px 20px;border-radius:26px;background:rgba(255,253,247,.96);box-shadow:0 12px 34px rgba(63,91,60,.14)}
+.bloom-overlay.is-growth-step .bloom-flower-image{width:104px;height:104px}
+.bloom-overlay.is-growth-step .bloom-scene p{font-size:19px}
+.growth-feedback-copy{display:grid;gap:5px;text-align:center}
+.growth-feedback-copy p{margin:0}
+.growth-feedback-copy small{color:var(--quiet);font-size:10px;font-weight:600}
+.bloom-overlay.is-bloom .growth-feedback-copy small{color:#A08863}
+
+@media(max-width:420px){
+  .growth-remaining{font-size:12px}
+  .growth-seed-card{align-items:center}
+  .self-mission-actions{flex-shrink:0}
+}
+
+
+/* Ver.0.12: cleaner self card, clearer reroll action, stronger growth feedback */
+.self-seed-head{padding-left:2px}
+.self-seed-head>div:first-child{flex:1;min-width:0}
+.self-seed-head .count-badge{flex:0 0 auto}
+
+/* 「別のタネ」は操作だと分かる小さなアウトラインボタンにする。 */
+.reroll-action{
+  min-height:30px;
+  padding:5px 10px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  background:rgba(255,255,255,.72);
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+  line-height:1;
+  cursor:pointer;
+}
+.reroll-action:hover{background:#fff;color:var(--deep)}
+.reroll-action:active{transform:translateY(1px)}
+.reroll-action span:first-child{font-size:14px;line-height:1}
+.self-mission-actions{gap:6px}
+
+/* 途中成長は淡すぎないよう、カードと文字のコントラストを上げる。 */
+.bloom-overlay.is-growth-step{background:#FCF7ED}
+.bloom-overlay.is-growth-step .bloom-scene{
+  background:#FFFDF8;
+  border:1px solid #E4EAD9;
+  box-shadow:0 16px 44px rgba(63,91,60,.18);
+}
+.bloom-overlay.is-growth-step .bloom-flower-image{opacity:1}
+.bloom-overlay.is-growth-step .growth-feedback-copy p{
+  color:var(--text);
+  font-weight:800;
+}
+.bloom-overlay.is-growth-step .growth-feedback-copy small{
+  color:var(--muted);
+  font-weight:700;
+}
+
+@media(max-width:420px){
+  .reroll-action{min-height:29px;padding:5px 9px}
+}
+
+
+/* Ver.0.13: growth information hierarchy */
+.growth-seed-top .repeat-chip{display:none}
+.growth-stage-line{align-items:baseline}
+.growth-stage-line .growth-count{
+  color:#A65F3E;
+  font-size:22px;
+  font-weight:900;
+  letter-spacing:.01em;
+  line-height:1;
+}
+.growth-remaining{
+  margin-top:5px!important;
+  color:var(--deep)!important;
+  font-size:12px!important;
+  font-weight:800!important;
+}
+
+
+/* Ver.0.14: same action weight for received/self seeds */
+.today-card::after{
+  content:none!important;
+  display:none!important;
+}
+
+/* 届いたタネ側も、自分用と同じ「別のタネ / 水をあげる」UIに統一する。 */
+.partner-mission-actions{
+  width:100%;
+  margin-top:10px;
+}
+.partner-mission-actions .water-text-action{
+  max-width:112px;
+  text-align:right;
+  line-height:1.35;
+}
+
+/* 旧・大ボタン前提の余白は使わない。 */
+.partner-mission-actions + *{margin-top:0}
+
+
+/* Ver.0.15: persistent sender nickname */
+.settings-field{
+  display:grid;
+  gap:7px;
+  margin-top:14px;
+}
+.settings-field>span{
+  color:var(--text);
+  font-size:12px;
+  font-weight:800;
+}
+.settings-name-row{
+  display:flex;
+  align-items:stretch;
+  gap:8px;
+}
+.settings-text-input{
+  min-width:0;
+  flex:1;
+  height:42px;
+  padding:0 13px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:#fff;
+  color:var(--text);
+  font:inherit;
+  font-size:14px;
+  outline:none;
+}
+.settings-text-input:focus{
+  border-color:var(--leaf);
+  box-shadow:0 0 0 3px rgba(124,148,115,.12);
+}
+.settings-name-row .secondary-button{
+  flex:0 0 auto;
+  min-width:70px;
+}
+.settings-status{
+  min-height:1.4em;
+  margin:7px 0 0!important;
+}
+.source-chip{
+  background:#EDF4E5;
+  color:#56734E;
+}

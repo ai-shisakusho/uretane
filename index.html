@@ -71,7 +71,7 @@
           <article class="today-card" id="partnerHero">
             <div class="today-meta">
               <span class="owner-mark partner-mark" aria-hidden="true"></span>
-              <span>届いた、うれしいこと</span>
+              <span id="partnerSourceLabel">届いた、うれしいこと</span>
               <span class="count-badge" id="partnerCount">0件</span>
             </div>
             <div id="partnerMissionEmpty" class="empty-state compact"><p>まだ届いたタネはありません。</p></div>
@@ -81,9 +81,9 @@
                 <div><span class="urgency-chip" id="partnerMissionUrgency"></span><p class="mission-text" id="partnerMissionText"></p></div>
               </div>
               <div class="mission-foot"><span class="water-drop small-drop" aria-hidden="true"></span><span>できたら、水をあげよう。</span></div>
-              <div class="button-row">
-                <button class="primary-button grow-button" id="partnerDoneButton" type="button"><span class="water-drop" aria-hidden="true"></span>水をあげる</button>
-                <button class="secondary-button" id="partnerRerollButton" type="button">別のタネ</button>
+              <div class="self-mission-actions partner-mission-actions">
+                <button class="reroll-action" id="partnerRerollButton" type="button" aria-label="別のタネ"><span aria-hidden="true">↻</span><span>別のタネ</span></button>
+                <button class="text-action strong water-text-action" id="partnerDoneButton" type="button"><span class="water-drop tiny-drop" aria-hidden="true"></span>水をあげる</button>
               </div>
             </div>
             <button class="primary-button full" id="drawPartnerButton" type="button">今日のタネを選ぶ</button>
@@ -91,15 +91,14 @@
 
           <article class="self-seed-card" id="selfHero">
             <div class="self-seed-head">
-              <span class="seed-icon" aria-hidden="true"></span>
-              <div><p class="mini-label">自分のうれタネ</p><h3>自分にも、ひとつ。</h3></div>
+              <div><p class="mini-label">自分のうれタネ</p><h3>今日、自分にできること。</h3></div>
               <span class="count-badge" id="selfCount">0件</span>
             </div>
             <div id="selfMissionEmpty" class="empty-state compact"><p>自分用のタネをまくと、ここに出てきます。</p></div>
             <div id="selfMissionCard" class="self-mission" hidden>
               <div class="self-mission-main"><img class="mission-growth-icon small" id="selfMissionGrowthIcon" src="growth-0-seed.svg" alt="タネ"><div><span class="urgency-chip" id="selfMissionUrgency"></span><p class="self-mission-text" id="selfMissionText"></p></div></div>
               <div class="self-mission-actions">
-                <button class="text-action" id="selfRerollButton" type="button">別のタネ</button>
+                <button class="reroll-action" id="selfRerollButton" type="button" aria-label="別のタネ"><span aria-hidden="true">↻</span><span>別のタネ</span></button>
                 <button class="text-action strong water-text-action" id="selfDoneButton" type="button"><span class="water-drop tiny-drop" aria-hidden="true"></span>水をあげる</button>
               </div>
             </div>
@@ -138,14 +137,17 @@
         <div class="page-title-row"><div><p class="eyebrow">GROWTH</p><h2 id="historyTitle">育ち具合</h2></div></div>
         <div class="history-heading growth-top-heading"><h3>タネごとの育ち具合</h3><p>水をあげるたびに、タネが少しずつ育ちます。</p></div>
         <div id="growthSeedsList" class="growth-seed-list"></div>
-        <section class="growth-card" id="growthCard" aria-label="今月の記録" hidden>
-          <div class="growth-visual" aria-hidden="true"><img id="growthSummaryImage" src="growth-0-seed.svg" alt=""></div>
-          <div class="growth-copy">
-            <p class="mini-label">今月</p>
-            <h3><span id="monthFlowerCount">0</span>輪の花が咲きました</h3>
-            <div class="growth-progress-row"><span>育てたタネ</span><strong><span id="grownKindsCount">0</span> / <span id="totalKindsCount">0</span></strong></div>
-            <progress class="progress-track" id="growthProgress" max="100" value="0" aria-label="育てたタネの割合">0%</progress>
-            <p class="growth-note">ノルマではなく、どれくらい育ったかをそっと振り返る記録です。</p>
+        <section class="month-stats-card" id="growthCard" aria-label="今月の記録" hidden>
+          <p class="mini-label">今月の記録</p>
+          <div class="month-stats-grid">
+            <div class="month-stat water-stat">
+              <span class="water-drop month-stat-icon" aria-hidden="true"></span>
+              <div><strong id="monthWaterCount">0</strong><span>回 水やり</span></div>
+            </div>
+            <div class="month-stat bloom-stat">
+              <span class="mini-flower-icon month-stat-icon" aria-hidden="true"></span>
+              <div><strong id="monthFlowerCount">0</strong><span>輪 開花</span></div>
+            </div>
           </div>
         </section>
         <div class="history-heading"><h3>水やりの記録</h3><p>水をあげた記録を新しい順に残します。</p></div>
@@ -157,6 +159,19 @@
           <div><p class="eyebrow">SETTINGS</p><h2 id="settingsTitle">設定</h2></div>
           <button class="secondary-button small" type="button" data-nav="home">ホームへ</button>
         </div>
+        <article class="settings-card profile-settings-card">
+          <h3>あなたの呼び名</h3>
+          <p>相手にタネを届けるときに「○○から」と表示する呼び名です。1回保存すれば、この端末では次回から自動で使います。</p>
+          <label class="settings-field" for="senderName">
+            <span>呼び名（任意）</span>
+            <div class="settings-name-row">
+              <input id="senderName" class="settings-text-input" type="text" maxlength="20" autocomplete="nickname" placeholder="例：たろう">
+              <button class="secondary-button small" id="saveSenderNameButton" type="button">保存</button>
+            </div>
+          </label>
+          <p class="helper">共有リンクを受け取った相手にだけ表示されます。本名でなく、ニックネームでOKです。</p>
+          <p class="status-message settings-status" id="senderNameStatus" role="status"></p>
+        </article>
         <article class="settings-card">
           <h3>このアプリの保存方法</h3>
           <p>うれタネ・履歴・設定は、このブラウザの端末内（localStorage）に保存します。外部サーバーへの送信やアクセス解析は行いません。</p>
@@ -165,7 +180,7 @@
           <details class="settings-details">
             <summary>共有について <span>共有リンクの安全な使い方</span></summary>
             <div class="details-body">
-              <p>相手に届けるタネだけを暗号化し、URLの <code>#</code> 以降に入れます。通常この部分はWebサーバーへ送信されません。ただし、共有リンクを知っている人は内容を開けるため、秘密情報は登録しないでください。</p>
+              <p>相手に届けるタネと、設定した呼び名（設定している場合）だけを暗号化し、URLの <code>#</code> 以降に入れます。通常この部分はWebサーバーへ送信されません。ただし、共有リンクを知っている人は内容を開けるため、秘密情報は登録しないでください。</p>
               <ul><li>パスワード、カード番号、認証情報は登録しない</li><li>住所・本名など重要な個人情報は必要以上に書かない</li><li>共有前に送る内容を確認する</li></ul>
             </div>
           </details>
@@ -175,7 +190,7 @@
           <p>自分がまいたタネ、届いたタネ、育てた記録、端末識別用IDをこの端末から削除します。元には戻せません。</p>
           <button class="danger-button" id="resetButton" type="button">すべて初期化する</button>
         </article>
-        <p class="version">Prototype 003 / Ver.0.8</p>
+        <p class="version">Prototype 003 / Ver.0.16</p>
       </section>
     </main>
 
@@ -263,7 +278,7 @@
     <div class="modal-actions stack-mobile"><button class="secondary-button" id="closeCompletionButton" type="button">閉じる</button><button class="primary-button" id="shareCompletionButton" type="button">LINEなどで伝える</button></div>
   </dialog>
 
-  <div class="bloom-overlay" id="bloomOverlay" aria-hidden="true" hidden><div class="bloom-scene"><img id="growthFeedbackImage" src="growth-0-seed.svg" alt="" class="bloom-flower-image"><p id="growthFeedbackText">少し育ちました</p></div></div>
+  <div class="bloom-overlay" id="bloomOverlay" role="status" aria-live="polite" aria-label="成長のお知らせ。タップすると閉じます" hidden><div class="bloom-scene"><img id="growthFeedbackImage" src="growth-0-seed.svg" alt="" class="bloom-flower-image"><div class="growth-feedback-copy"><p id="growthFeedbackText">少し育ちました</p><small id="growthFeedbackHint">タップで閉じる</small></div></div></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <script src="app.js" defer></script>
 </body>
