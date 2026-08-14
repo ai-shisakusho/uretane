@@ -26,6 +26,8 @@ let currentPartnerMissionId = null;
 let currentSelfMissionId = null;
 let pendingImport = null;
 let cachedShareUrl = '';
+let activeShareItemIds = [];
+let lastSavedPartnerItemId = null;
 let pendingCompletionItem = null;
 let toastTimer = null;
 let bloomTimer = null;
@@ -45,6 +47,7 @@ const elements = {
   nextStepCard: $('nextStepCard'),
   nextStepShareButton: $('nextStepShareButton'),
   growthCard: $('growthCard'),
+  growthSummaryImage: $('growthSummaryImage'),
   growthSeedsList: $('growthSeedsList'),
   monthFlowerCount: $('monthFlowerCount'),
   grownKindsCount: $('grownKindsCount'),
@@ -58,9 +61,18 @@ const elements = {
   requestText: $('requestText'),
   charCount: $('charCount'),
   saveRequestButton: $('saveRequestButton'),
+  closeRequestDialogButton: $('closeRequestDialogButton'),
+  cancelRequestButton: $('cancelRequestButton'),
+  postSaveDialog: $('postSaveDialog'),
+  postSaveAddMoreButton: $('postSaveAddMoreButton'),
+  postSaveShareButton: $('postSaveShareButton'),
+  postSaveCloseButton: $('postSaveCloseButton'),
   completionLimit: $('completionLimit'),
   limitCountRow: $('limitCountRow'),
   mineList: $('mineList'),
+  deliveredDetails: $('deliveredDetails'),
+  deliveredCount: $('deliveredCount'),
+  deliveredList: $('deliveredList'),
   partnerList: $('partnerList'),
   minePanel: $('minePanel'),
   partnerPanel: $('partnerPanel'),
@@ -71,6 +83,8 @@ const elements = {
   copyShareButton: $('copyShareButton'),
   nativeShareButton: $('nativeShareButton'),
   shareStatus: $('shareStatus'),
+  selectAllShareButton: $('selectAllShareButton'),
+  clearShareSelectionButton: $('clearShareSelectionButton'),
   importDialog: $('importDialog'),
   importPreview: $('importPreview'),
   importSummary: $('importSummary'),
@@ -92,6 +106,7 @@ const elements = {
   partnerMissionCard: $('partnerMissionCard'),
   partnerMissionUrgency: $('partnerMissionUrgency'),
   partnerMissionText: $('partnerMissionText'),
+  partnerMissionGrowthIcon: $('partnerMissionGrowthIcon'),
   drawPartnerButton: $('drawPartnerButton'),
   partnerDoneButton: $('partnerDoneButton'),
   partnerRerollButton: $('partnerRerollButton'),
@@ -99,6 +114,7 @@ const elements = {
   selfMissionCard: $('selfMissionCard'),
   selfMissionUrgency: $('selfMissionUrgency'),
   selfMissionText: $('selfMissionText'),
+  selfMissionGrowthIcon: $('selfMissionGrowthIcon'),
   drawSelfButton: $('drawSelfButton'),
   selfDoneButton: $('selfDoneButton'),
   selfRerollButton: $('selfRerollButton'),
@@ -107,6 +123,8 @@ const elements = {
   closeCompletionButton: $('closeCompletionButton'),
   shareCompletionButton: $('shareCompletionButton'),
   bloomOverlay: $('bloomOverlay'),
+  growthFeedbackImage: $('growthFeedbackImage'),
+  growthFeedbackText: $('growthFeedbackText'),
   toast: $('toast')
 };
 
@@ -159,7 +177,14 @@ function normalizeCompletionLimit(value) {
 }
 
 function normalizeItem(item) {
-  return { ...item, completionLimit: normalizeCompletionLimit(item.completionLimit) };
+  const normalized = { ...item, completionLimit: normalizeCompletionLimit(item.completionLimit) };
+  if (normalized.executor === 'partner') {
+    normalized.deliveryStatus = normalized.deliveryStatus === 'sent' ? 'sent' : 'draft';
+    if (typeof normalized.sentAt !== 'string') delete normalized.sentAt;
+    if (typeof normalized.lastSentAt !== 'string') delete normalized.lastSentAt;
+    normalized.sentCount = Number.isInteger(normalized.sentCount) && normalized.sentCount >= 0 ? normalized.sentCount : 0;
+  }
+  return normalized;
 }
 
 function getCompletionStats(item, kind) {
@@ -203,10 +228,10 @@ function getGrowthStage(count, limit) {
   if (count <= 0) return 0;
   if (limit === null) return Math.min(4, count);
   if (limit <= 1) return count >= 1 ? 4 : 0;
-  const ratio = count / limit;
-  if (ratio < 0.34) return 1;
-  if (ratio < 0.67) return 2;
-  if (ratio < 1) return 3;
+  const percent = Math.round((count / limit) * 100);
+  if (percent <= 33) return 1;
+  if (percent <= 66) return 2;
+  if (percent < 100) return 3;
   return 4;
 }
 
@@ -240,6 +265,23 @@ function getGrowthInfo(item, kind) {
   }
 
   return { ...stats, stage, icon: growthIconMap[stage], label, detail, subline };
+}
+
+
+function isBloomHistoryEntry(entry) {
+  if (typeof entry.bloomed === 'boolean') return entry.bloomed;
+  const source = entry.kind === 'partner' ? state.partnerItems : state.myItems;
+  const item = source.find((candidate) => candidate.id === entry.sourceItemId);
+  if (!item) return false;
+  const limit = normalizeCompletionLimit(item.completionLimit);
+  const chronological = state.history
+    .filter((candidate) => candidate.kind === entry.kind && candidate.sourceItemId === entry.sourceItemId)
+    .sort((a, b) => new Date(a.completedAt) - new Date(b.completedAt));
+  const index = chronological.findIndex((candidate) => candidate.id === entry.id);
+  if (index < 0) return false;
+  const beforeStage = getGrowthStage(index, limit);
+  const afterStage = getGrowthStage(index + 1, limit);
+  return beforeStage < 4 && afterStage === 4;
 }
 
 function nowIso() {
@@ -276,12 +318,88 @@ function renderAll() {
 
 function renderMyList() {
   elements.mineList.replaceChildren();
-  const items = [...state.myItems].sort(sortItems);
-  if (!items.length) {
-    elements.mineList.append(createEmptyCard('まだタネがありません。まずは「これができたらうれしい」を1つまいてみましょう。'));
-    return;
+  elements.deliveredList.replaceChildren();
+
+  const selfItems = state.myItems.filter((item) => item.executor === 'self').sort(sortItems);
+  const draftPartnerItems = state.myItems.filter((item) => item.executor === 'partner' && item.deliveryStatus !== 'sent').sort(sortItems);
+  const sentPartnerItems = state.myItems.filter((item) => item.executor === 'partner' && item.deliveryStatus === 'sent')
+    .sort((a, b) => new Date(b.lastSentAt || b.sentAt || b.updatedAt || 0) - new Date(a.lastSentAt || a.sentAt || a.updatedAt || 0));
+
+  if (!selfItems.length && !draftPartnerItems.length) {
+    elements.mineList.append(createEmptyCard('未送信のタネはありません。自分用のタネをまくか、相手に届けたいタネを追加してみましょう。'));
+  } else {
+    if (draftPartnerItems.length) {
+      elements.mineList.append(createListSectionTitle('相手に届ける・未送信', `${draftPartnerItems.length}件`));
+      draftPartnerItems.forEach((item) => elements.mineList.append(createRequestCard(item, 'mine')));
+    }
+    if (selfItems.length) {
+      elements.mineList.append(createListSectionTitle('自分で育てる', `${selfItems.length}件`));
+      selfItems.forEach((item) => elements.mineList.append(createRequestCard(item, 'mine')));
+    }
   }
-  items.forEach((item) => elements.mineList.append(createRequestCard(item, 'mine')));
+
+  elements.deliveredCount.textContent = `${sentPartnerItems.length}件`;
+  elements.deliveredDetails.hidden = sentPartnerItems.length === 0;
+  sentPartnerItems.forEach((item) => elements.deliveredList.append(createDeliveredCard(item)));
+
+  elements.shareButton.disabled = draftPartnerItems.length === 0;
+}
+
+function createListSectionTitle(title, countText) {
+  const row = document.createElement('div');
+  row.className = 'list-section-title';
+  const h = document.createElement('h3');
+  h.textContent = title;
+  const count = document.createElement('span');
+  count.textContent = countText;
+  row.append(h, count);
+  return row;
+}
+
+function createDeliveredCard(item) {
+  const card = document.createElement('article');
+  card.className = 'request-card request-partner delivered-card';
+
+  const top = document.createElement('div');
+  top.className = 'request-meta';
+  const left = document.createElement('div');
+  left.className = 'meta-left';
+  left.append(createUrgencyChip(item.urgency));
+  const sentChip = document.createElement('span');
+  sentChip.className = 'type-chip delivered-chip';
+  sentChip.textContent = '届け済み';
+  left.append(sentChip);
+  const repeat = document.createElement('span');
+  repeat.className = 'repeat-chip';
+  repeat.textContent = repeatLabel(item);
+  left.append(repeat);
+
+  const actions = document.createElement('div');
+  actions.className = 'card-actions';
+  const resend = document.createElement('button');
+  resend.type = 'button';
+  resend.className = 'text-button';
+  resend.textContent = '再送';
+  resend.addEventListener('click', () => openShareDialog({ itemIds: [item.id], includeSent: true }));
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'text-button danger';
+  remove.textContent = '削除';
+  remove.addEventListener('click', () => deleteItem(item.id, 'mine'));
+  actions.append(resend, remove);
+  top.append(left, actions);
+
+  const body = document.createElement('p');
+  body.textContent = item.text;
+  const meta = document.createElement('div');
+  meta.className = 'delivery-meta';
+  const when = document.createElement('span');
+  when.textContent = `届けた日 ${formatDate(item.lastSentAt || item.sentAt || item.updatedAt)}`;
+  const count = document.createElement('span');
+  count.textContent = item.sentCount > 1 ? `${item.sentCount}回送信` : '送信済み';
+  meta.append(when, count);
+  card.append(top, body, meta);
+  return card;
 }
 
 function renderPartnerList() {
@@ -510,6 +628,7 @@ function renderSummary() {
   elements.partnerCount.textContent = `${state.partnerItems.length}件`;
   const selfItems = state.myItems.filter((item) => item.executor === 'self');
   const partnerTargetItems = state.myItems.filter((item) => item.executor === 'partner');
+  const partnerDraftItems = partnerTargetItems.filter((item) => item.deliveryStatus !== 'sent');
   elements.selfCount.textContent = `${selfItems.length}件`;
 
   const visibleItems = [...state.partnerItems, ...selfItems];
@@ -523,7 +642,7 @@ function renderSummary() {
 
   const monthFlowers = state.history.filter((item) => {
     const date = new Date(item.completedAt);
-    return !Number.isNaN(date.getTime()) && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+    return !Number.isNaN(date.getTime()) && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && isBloomHistoryEntry(item);
   }).length;
   const availableIds = new Set(visibleItems.map((item) => item.id));
   const grownIds = new Set(state.history.filter((item) => availableIds.has(item.sourceItemId)).map((item) => item.sourceItemId));
@@ -537,6 +656,7 @@ function renderSummary() {
   elements.totalKindsCount.textContent = String(totalKinds);
   elements.growthProgress.value = progress;
   elements.growthProgress.textContent = `${progress}%`;
+  elements.growthSummaryImage.src = growthIconMap[getGrowthStage(grownKinds, totalKinds || 1)];
 
   // 初回はプロトタイプと同じく「まず1つまく」だけに集中させる。
   elements.onboardingCard.hidden = hasAnySeeds;
@@ -548,7 +668,7 @@ function renderSummary() {
   elements.growthCard.hidden = state.history.length === 0;
   elements.partnerHero.hidden = state.partnerItems.length === 0;
   elements.selfHero.hidden = selfItems.length === 0;
-  elements.nextStepCard.hidden = !(partnerTargetItems.length > 0 && !hasActionableSeeds);
+  elements.nextStepCard.hidden = !(partnerDraftItems.length > 0 && !hasActionableSeeds);
 
   elements.drawPartnerButton.disabled = getAvailableItems(state.partnerItems, 'partner').length === 0;
   elements.drawSelfButton.disabled = getAvailableItems(selfItems, 'self').length === 0;
@@ -606,6 +726,10 @@ function renderMission(kind) {
   chip.className = `urgency-chip ${urgencyMeta[item.urgency].className}`;
   chip.textContent = urgencyMeta[item.urgency].label;
   text.textContent = item.text;
+  const growth = getGrowthInfo(item, kind);
+  const growthIcon = isPartner ? elements.partnerMissionGrowthIcon : elements.selfMissionGrowthIcon;
+  growthIcon.src = growth.icon;
+  growthIcon.alt = growth.label;
 }
 
 function drawMission(kind) {
@@ -643,13 +767,18 @@ function completeMission(kind) {
     return;
   }
 
+  const nextCount = before.count + 1;
+  const nextStage = getGrowthStage(nextCount, before.limit);
+  const bloomed = before.stage < 4 && nextStage === 4;
+
   state.history.unshift({
     id: crypto.randomUUID(),
     sourceItemId: item.id,
     text: item.text,
     urgency: item.urgency,
     kind,
-    completedAt: nowIso()
+    completedAt: nowIso(),
+    bloomed
   });
   state.history = state.history.slice(0, 500);
   saveState();
@@ -658,9 +787,7 @@ function completeMission(kind) {
   renderSummary();
 
   const after = getGrowthInfo(item, kind);
-  const bloomed = after.stage === 4 && before.stage < 4;
-
-  if (bloomed) showBloom();
+  showGrowthFeedback(after, bloomed);
 
   if (isPartner) {
     currentPartnerMissionId = null;
@@ -673,12 +800,10 @@ function completeMission(kind) {
       }, 1250);
     } else {
       pendingCompletionItem = null;
-      showToast(after.limit === null ? `水をあげました（${after.count}回目）` : `水をあげました（${Math.min(after.count, after.limit)} / ${after.limit}）`);
     }
   } else {
     currentSelfMissionId = null;
     renderMission('self');
-    if (!bloomed) showToast(after.limit === null ? `自分のタネに水をあげました（${after.count}回目）` : `自分のタネに水をあげました（${Math.min(after.count, after.limit)} / ${after.limit}）`);
   }
 }
 
@@ -707,15 +832,15 @@ async function shareCompletion() {
   }
 }
 
-function openRequestDialog(item = null) {
+function openRequestDialog(item = null, defaults = {}) {
   elements.requestForm.reset();
   elements.editingId.value = item?.id || '';
   elements.requestDialogTitle.textContent = item ? 'うれタネを編集' : 'タネをまく';
   elements.requestText.value = item?.text || '';
   elements.charCount.textContent = String(elements.requestText.value.length);
 
-  const executor = item?.executor || 'partner';
-  const urgency = item?.urgency || 'today';
+  const executor = item?.executor || defaults.executor || 'partner';
+  const urgency = item?.urgency || defaults.urgency || 'today';
   const executorInput = elements.requestForm.querySelector(`input[name="executor"][value="${executor}"]`);
   const urgencyInput = elements.requestForm.querySelector(`input[name="urgency"][value="${urgency}"]`);
   if (executorInput) executorInput.checked = true;
@@ -768,7 +893,8 @@ function saveRequest() {
   if (editingId) {
     const index = state.myItems.findIndex((item) => item.id === editingId);
     if (index >= 0) {
-      state.myItems[index] = { ...state.myItems[index], text, executor, urgency, completionLimit, updatedAt: timestamp };
+      const previous = state.myItems[index];
+      state.myItems[index] = { ...previous, text, executor, urgency, completionLimit, deliveryStatus: executor === 'partner' ? (previous.deliveryStatus || 'draft') : undefined, updatedAt: timestamp };
     }
   } else {
     state.myItems.push({
@@ -777,6 +903,7 @@ function saveRequest() {
       executor,
       urgency,
       completionLimit,
+      deliveryStatus: executor === 'partner' ? 'draft' : undefined,
       createdAt: timestamp,
       updatedAt: timestamp
     });
@@ -786,7 +913,14 @@ function saveRequest() {
   elements.requestDialog.close();
   currentSelfMissionId = null;
   renderAll();
-  showToast(editingId ? 'うれタネを更新しました。' : 'うれタネをまきました。');
+
+  if (!editingId && executor === 'partner') {
+    const newest = state.myItems.filter((item) => item.executor === 'partner' && item.deliveryStatus !== 'sent').sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
+    lastSavedPartnerItemId = newest?.id || null;
+    elements.postSaveDialog.showModal();
+  } else {
+    showToast(editingId ? 'うれタネを更新しました。' : 'うれタネをまきました。');
+  }
 }
 
 function deleteItem(id, type) {
@@ -835,26 +969,70 @@ function buildSharePreview(container, items) {
   });
 }
 
-async function openShareDialog() {
-  const items = state.myItems.filter((item) => item.executor === 'partner').sort(sortItems);
+function getShareCandidates(options = {}) {
+  const includeSent = options.includeSent === true;
+  const requestedIds = Array.isArray(options.itemIds) ? new Set(options.itemIds) : null;
+  return state.myItems
+    .filter((item) => item.executor === 'partner')
+    .filter((item) => includeSent || item.deliveryStatus !== 'sent')
+    .filter((item) => !requestedIds || requestedIds.has(item.id))
+    .sort(sortItems);
+}
+
+function renderShareSelection(items, selectedIds) {
+  elements.sharePreview.replaceChildren();
+  items.forEach((item) => {
+    const label = document.createElement('label');
+    label.className = 'share-select-item';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = item.id;
+    input.checked = selectedIds.has(item.id);
+    input.addEventListener('change', updateShareSelectionState);
+
+    const check = document.createElement('span');
+    check.className = 'share-check';
+    const body = document.createElement('span');
+    body.className = 'share-select-body';
+    const meta = document.createElement('span');
+    meta.className = 'share-select-meta';
+    meta.append(createUrgencyChip(item.urgency));
+    const repeat = document.createElement('span');
+    repeat.className = 'repeat-chip';
+    repeat.textContent = repeatLabel(item);
+    meta.append(repeat);
+    const text = document.createElement('strong');
+    text.textContent = item.text;
+    body.append(meta, text);
+    label.append(input, check, body);
+    elements.sharePreview.append(label);
+  });
+  updateShareSelectionState();
+}
+
+function getSelectedShareIds() {
+  return Array.from(elements.sharePreview.querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
+}
+
+function updateShareSelectionState() {
+  activeShareItemIds = getSelectedShareIds();
+  const count = activeShareItemIds.length;
+  elements.copyShareButton.disabled = count === 0;
+  elements.nativeShareButton.disabled = count === 0;
+  elements.shareStatus.textContent = count ? `${count}件を届けます。` : '届けるタネを1件以上選んでください。';
+  cachedShareUrl = '';
+}
+
+async function openShareDialog(options = {}) {
+  const items = getShareCandidates(options);
   if (!items.length) {
-    showToast('「相手に届ける」うれタネを1件以上まいてください。');
+    showToast(options.includeSent ? '再送できるタネが見つかりません。' : '未送信の「相手に届ける」うれタネがありません。');
     return;
   }
 
-  buildSharePreview(elements.sharePreview, items);
-  elements.shareStatus.textContent = `${items.length}件のうれタネを届けます。共有前に内容を確認してください。`;
-  elements.copyShareButton.disabled = true;
-  elements.nativeShareButton.disabled = true;
+  const preselected = new Set(Array.isArray(options.itemIds) && options.itemIds.length ? options.itemIds : items.map((item) => item.id));
+  renderShareSelection(items, preselected);
   elements.shareDialog.showModal();
-
-  try {
-    cachedShareUrl = await createEncryptedShareUrl(items);
-    elements.copyShareButton.disabled = false;
-    elements.nativeShareButton.disabled = false;
-  } catch {
-    elements.shareStatus.textContent = '共有リンクを作成できませんでした。対応ブラウザでお試しください。';
-  }
 }
 
 async function createEncryptedShareUrl(items) {
@@ -863,6 +1041,7 @@ async function createEncryptedShareUrl(items) {
     v: 1,
     sourceId: state.deviceId,
     generatedAt: nowIso(),
+    mode: 'merge',
     items: items.slice(0, MAX_SHARED_ITEMS).map((item) => ({
       id: item.id,
       text: item.text,
@@ -900,29 +1079,77 @@ function fromBase64Url(value) {
   return bytes;
 }
 
+function getSelectedShareItems() {
+  const ids = new Set(getSelectedShareIds());
+  return state.myItems.filter((item) => item.executor === 'partner' && ids.has(item.id));
+}
+
+function markItemsDelivered(items) {
+  const deliveredAt = nowIso();
+  const ids = new Set(items.map((item) => item.id));
+  state.myItems = state.myItems.map((item) => {
+    if (!ids.has(item.id)) return item;
+    return {
+      ...item,
+      deliveryStatus: 'sent',
+      sentAt: item.sentAt || deliveredAt,
+      lastSentAt: deliveredAt,
+      sentCount: (Number.isInteger(item.sentCount) ? item.sentCount : 0) + 1
+    };
+  });
+  saveState();
+  renderAll();
+}
+
+async function ensureSelectedShareUrl() {
+  const items = getSelectedShareItems();
+  if (!items.length) throw new Error('No items selected');
+  cachedShareUrl = await createEncryptedShareUrl(items);
+  return { items, url: cachedShareUrl };
+}
+
 async function copyShareLink() {
-  if (!cachedShareUrl) return;
   try {
-    await navigator.clipboard.writeText(cachedShareUrl);
-    elements.shareStatus.textContent = '共有リンクをコピーしました。LINEなどで相手に送れます。';
+    const { items, url } = await ensureSelectedShareUrl();
+    await navigator.clipboard.writeText(url);
+    markItemsDelivered(items);
+    elements.shareDialog.close();
+    showToast(`${items.length}件のリンクをコピーし、届け済みにしました。`);
   } catch {
     elements.shareStatus.textContent = 'コピーできませんでした。ブラウザの権限設定をご確認ください。';
   }
 }
 
 async function nativeShareLink() {
-  if (!cachedShareUrl) return;
-  if (!navigator.share) {
-    await copyShareLink();
+  let prepared;
+  try {
+    prepared = await ensureSelectedShareUrl();
+  } catch {
+    elements.shareStatus.textContent = '共有リンクを作成できませんでした。';
     return;
   }
+
+  if (!navigator.share) {
+    try {
+      await navigator.clipboard.writeText(prepared.url);
+      markItemsDelivered(prepared.items);
+      elements.shareDialog.close();
+      showToast(`${prepared.items.length}件のリンクをコピーし、届け済みにしました。`);
+    } catch {
+      elements.shareStatus.textContent = '共有できませんでした。';
+    }
+    return;
+  }
+
   try {
     await navigator.share({
       title: 'うれタネが届いています',
       text: 'うれタネを届けました。リンクを開いて取り込んでください。',
-      url: cachedShareUrl
+      url: prepared.url
     });
-    elements.shareStatus.textContent = '共有画面を開きました。';
+    markItemsDelivered(prepared.items);
+    elements.shareDialog.close();
+    showToast(`${prepared.items.length}件を届け済みにしました。`);
   } catch (error) {
     if (error?.name !== 'AbortError') elements.shareStatus.textContent = '共有できませんでした。リンクコピーをお試しください。';
   }
@@ -985,6 +1212,7 @@ function validateSharePayload(payload) {
   return {
     sourceId: payload.sourceId,
     generatedAt: typeof payload.generatedAt === 'string' ? payload.generatedAt : nowIso(),
+    mode: payload.mode === 'merge' ? 'merge' : 'snapshot',
     items
   };
 }
@@ -995,8 +1223,10 @@ function showImportDialog(payload) {
   const newIds = new Set(payload.items.map((item) => item.id));
   const addCount = payload.items.filter((item) => !existing.some((old) => old.id === item.id)).length;
   const updateCount = payload.items.filter((item) => existing.some((old) => old.id === item.id && (old.text !== item.text || old.urgency !== item.urgency || normalizeCompletionLimit(old.completionLimit) !== normalizeCompletionLimit(item.completionLimit)))).length;
-  const removeCount = existing.filter((item) => !newIds.has(item.id)).length;
-  elements.importSummary.textContent = `受信 ${payload.items.length}件 / 追加 ${addCount}件 / 更新 ${updateCount}件 / 削除 ${removeCount}件`;
+  const removeCount = payload.mode === 'snapshot' ? existing.filter((item) => !newIds.has(item.id)).length : 0;
+  elements.importSummary.textContent = payload.mode === 'merge'
+    ? `受信 ${payload.items.length}件 / 追加 ${addCount}件 / 更新 ${updateCount}件`
+    : `受信 ${payload.items.length}件 / 追加 ${addCount}件 / 更新 ${updateCount}件 / 削除 ${removeCount}件`;
   elements.importStatus.textContent = '取り込むまで、この端末のデータは変更されません。';
   elements.importDialog.showModal();
 }
@@ -1005,7 +1235,6 @@ function importPendingShare() {
   if (!pendingImport) return;
   const sourceId = pendingImport.sourceId;
   const importedAt = nowIso();
-  const otherSources = state.partnerItems.filter((item) => item.sourceId !== sourceId);
   const incoming = pendingImport.items.map((item) => ({
     id: item.id,
     sourceId,
@@ -1015,7 +1244,14 @@ function importPendingShare() {
     updatedAt: item.updatedAt,
     importedAt
   }));
-  state.partnerItems = [...otherSources, ...incoming];
+  if (pendingImport.mode === 'merge') {
+    const incomingIds = new Set(incoming.map((item) => item.id));
+    const retained = state.partnerItems.filter((item) => item.sourceId !== sourceId || !incomingIds.has(item.id));
+    state.partnerItems = [...retained, ...incoming];
+  } else {
+    const otherSources = state.partnerItems.filter((item) => item.sourceId !== sourceId);
+    state.partnerItems = [...otherSources, ...incoming];
+  }
   saveState();
   currentPartnerMissionId = null;
   pendingImport = null;
@@ -1044,6 +1280,8 @@ function resetAllData() {
   currentSelfMissionId = null;
   pendingImport = null;
   cachedShareUrl = '';
+  activeShareItemIds = [];
+  lastSavedPartnerItemId = null;
   pendingCompletionItem = null;
   if (elements.completionDialog.open) elements.completionDialog.close();
   clearShareHash();
@@ -1054,12 +1292,15 @@ function resetAllData() {
   showToast('この端末のうれタネを初期化しました。');
 }
 
-function showBloom() {
+function showGrowthFeedback(growth, bloomed = false) {
   clearTimeout(bloomTimer);
+  elements.growthFeedbackImage.src = growth.icon;
+  elements.growthFeedbackImage.alt = growth.label;
+  elements.growthFeedbackText.textContent = bloomed ? '花がひとつ咲きました' : growth.label;
   elements.bloomOverlay.hidden = false;
   bloomTimer = setTimeout(() => {
     elements.bloomOverlay.hidden = true;
-  }, 1650);
+  }, bloomed ? 1650 : 1150);
 }
 
 function showToast(message) {
@@ -1079,7 +1320,7 @@ function attachEvents() {
 
   elements.openAddButton.addEventListener('click', () => openRequestDialog());
   elements.onboardingAddButton.addEventListener('click', () => openRequestDialog());
-  elements.nextStepShareButton.addEventListener('click', openShareDialog);
+  elements.nextStepShareButton.addEventListener('click', () => openShareDialog());
   elements.addRequestButton.addEventListener('click', () => openRequestDialog());
   elements.requestText.addEventListener('input', () => {
     elements.charCount.textContent = String(elements.requestText.value.length);
@@ -1088,11 +1329,30 @@ function attachEvents() {
     input.addEventListener('change', updateRepeatControls);
   });
   elements.saveRequestButton.addEventListener('click', saveRequest);
+  elements.closeRequestDialogButton.addEventListener('click', () => elements.requestDialog.close());
+  elements.cancelRequestButton.addEventListener('click', () => elements.requestDialog.close());
+  elements.postSaveCloseButton.addEventListener('click', () => elements.postSaveDialog.close());
+  elements.postSaveAddMoreButton.addEventListener('click', () => {
+    elements.postSaveDialog.close();
+    openRequestDialog(null, { executor: 'partner' });
+  });
+  elements.postSaveShareButton.addEventListener('click', () => {
+    elements.postSaveDialog.close();
+    openShareDialog();
+  });
 
-  elements.shareButton.addEventListener('click', openShareDialog);
+  elements.shareButton.addEventListener('click', () => openShareDialog());
   elements.closeShareDialog.addEventListener('click', () => elements.shareDialog.close());
   elements.copyShareButton.addEventListener('click', copyShareLink);
   elements.nativeShareButton.addEventListener('click', nativeShareLink);
+  elements.selectAllShareButton.addEventListener('click', () => {
+    elements.sharePreview.querySelectorAll('input[type="checkbox"]').forEach((input) => { input.checked = true; });
+    updateShareSelectionState();
+  });
+  elements.clearShareSelectionButton.addEventListener('click', () => {
+    elements.sharePreview.querySelectorAll('input[type="checkbox"]').forEach((input) => { input.checked = false; });
+    updateShareSelectionState();
+  });
 
   elements.importButton.addEventListener('click', importPendingShare);
   elements.cancelImportButton.addEventListener('click', () => elements.importDialog.close());
