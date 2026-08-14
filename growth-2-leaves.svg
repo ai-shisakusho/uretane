@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="葉が増える / 34〜66%">
+  <title>葉が増える / 34〜66%</title>
+  <rect x="30" y="16" width="4" height="44" rx="2" fill="#6E9459"></rect>
+  <path d="M0 0 Q21 0 21 14 Q0 14 0 0Z" fill="#7FA36A" transform="translate(10 36) rotate(-16 10.5 7)"></path>
+  <path d="M21 0 Q0 0 0 14 Q21 14 21 0Z" fill="#9DBE84" transform="translate(33 36) rotate(16 10.5 7)"></path>
+  <path d="M0 0 Q17 0 17 12 Q0 12 0 0Z" fill="#8FB176" transform="translate(15 19) rotate(-22 8.5 6)"></path>
+  <path d="M17 0 Q0 0 0 12 Q17 12 17 0Z" fill="#AECB96" transform="translate(32 19) rotate(22 8.5 6)"></path>
+  <path d="M8 64 Q8 54 32 54 Q56 54 56 64 Z" fill="#C9A87C"></path>
+  <ellipse cx="32" cy="55.5" rx="23" ry="2.6" fill="#DBBE96"></ellipse>
+</svg>

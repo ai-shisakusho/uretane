@@ -45,6 +45,7 @@ const elements = {
   nextStepCard: $('nextStepCard'),
   nextStepShareButton: $('nextStepShareButton'),
   growthCard: $('growthCard'),
+  growthSeedsList: $('growthSeedsList'),
   monthFlowerCount: $('monthFlowerCount'),
   grownKindsCount: $('grownKindsCount'),
   totalKindsCount: $('totalKindsCount'),
@@ -189,6 +190,58 @@ function repeatLabel(item) {
   return limit === null ? '何回でも' : `全${limit}回`;
 }
 
+
+const growthIconMap = [
+  'growth-0-seed.svg',
+  'growth-1-sprout.svg',
+  'growth-2-leaves.svg',
+  'growth-3-bud.svg',
+  'growth-4-bloom.svg'
+];
+
+function getGrowthStage(count, limit) {
+  if (count <= 0) return 0;
+  if (limit === null) return Math.min(4, count);
+  if (limit <= 1) return count >= 1 ? 4 : 0;
+  const ratio = count / limit;
+  if (ratio < 0.34) return 1;
+  if (ratio < 0.67) return 2;
+  if (ratio < 1) return 3;
+  return 4;
+}
+
+function getGrowthInfo(item, kind) {
+  const stats = getCompletionStats(item, kind);
+  const stage = getGrowthStage(stats.count, stats.limit);
+  let label = 'タネ';
+  if (stage === 1) label = '芽が出ました';
+  else if (stage === 2) label = '葉が育っています';
+  else if (stage === 3) label = 'つぼみがつきました';
+  else if (stage === 4) label = '花が咲きました';
+
+  let detail;
+  if (stats.limit === null) {
+    detail = stats.count ? `${stats.count}回、水をあげました` : 'まだ水をあげていません';
+  } else {
+    detail = `${Math.min(stats.count, stats.limit)} / ${stats.limit}`;
+  }
+
+  let subline;
+  if (stats.limit === null) {
+    subline = stats.completedToday ? '今日は水をあげました' : '同じタネに水をあげられるのは1日1回まで';
+  } else if (stats.limitReached) {
+    subline = 'このタネは咲ききりました';
+  } else if (stats.completedToday) {
+    subline = `今日は水をあげました（あと${Math.max((stats.limit ?? 0) - stats.count, 0)}回）`;
+  } else if (stats.completions.length) {
+    subline = `あと${Math.max((stats.limit ?? 0) - stats.count, 0)}回で花が咲きます`;
+  } else {
+    subline = stats.limit === 1 ? '水をあげると花が咲きます' : `あと${Math.max((stats.limit ?? 0) - stats.count, 0)}回で花が咲きます`;
+  }
+
+  return { ...stats, stage, icon: growthIconMap[stage], label, detail, subline };
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -215,6 +268,7 @@ function renderAll() {
   renderMyList();
   renderPartnerList();
   renderHistory();
+  renderGrowthSeeds();
   renderSummary();
   renderMission('partner');
   renderMission('self');
@@ -319,27 +373,30 @@ function createRequestCard(item, type) {
   const canTrack = type === 'partner' || (type === 'mine' && item.executor === 'self');
   if (canTrack) {
     const kind = type === 'partner' ? 'partner' : 'self';
-    const stats = getCompletionStats(item, kind);
-    const progress = document.createElement('div');
-    progress.className = 'item-progress';
-    if (stats.limitReached) progress.classList.add('is-complete');
-    else if (stats.completedToday) progress.classList.add('is-today');
+    const growth = getGrowthInfo(item, kind);
 
-    const count = document.createElement('strong');
-    if (stats.limit === null) {
-      count.textContent = stats.count ? `${stats.count}回育てた` : 'まだ育てていません';
-    } else {
-      count.textContent = `${stats.count} / ${stats.limit}回育てた`;
-    }
+    const growthRow = document.createElement('div');
+    growthRow.className = 'item-growth';
 
-    const last = document.createElement('span');
-    if (stats.limitReached) last.textContent = 'このタネは咲ききりました';
-    else if (stats.completedToday) last.textContent = '今日は育てました';
-    else if (stats.completions.length) last.textContent = `最後 ${formatDate(stats.completions[0].completedAt)}`;
-    else last.textContent = '同じタネは1日1回まで';
+    const growthIcon = document.createElement('img');
+    growthIcon.className = 'growth-stage-icon';
+    growthIcon.src = growth.icon;
+    growthIcon.alt = growth.label;
+    growthIcon.width = 52;
+    growthIcon.height = 52;
 
-    progress.append(count, last);
-    card.append(progress);
+    const growthText = document.createElement('div');
+    growthText.className = 'growth-text';
+    const growthTitle = document.createElement('strong');
+    growthTitle.textContent = growth.label;
+    const growthMeta = document.createElement('span');
+    growthMeta.textContent = growth.detail;
+    const growthSub = document.createElement('small');
+    growthSub.textContent = growth.subline;
+    growthText.append(growthTitle, growthMeta, growthSub);
+
+    growthRow.append(growthIcon, growthText);
+    card.append(growthRow);
   }
   return card;
 }
@@ -355,7 +412,7 @@ function createUrgencyChip(urgency) {
 function renderHistory() {
   elements.historyList.replaceChildren();
   if (!state.history.length) {
-    elements.historyList.append(createEmptyCard('「できた！花を咲かせる」を押すと、ここに花の記録が残ります。'));
+    elements.historyList.append(createEmptyCard('水をあげると、ここに記録が残ります。'));
     return;
   }
   const sorted = [...state.history].sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
@@ -383,6 +440,69 @@ function renderHistory() {
     text.textContent = item.text;
     card.append(meta, text);
     elements.historyList.append(card);
+  });
+}
+
+function renderGrowthSeeds() {
+  elements.growthSeedsList.replaceChildren();
+  const items = [
+    ...state.partnerItems.map((item) => ({ item, kind: 'partner', source: '届いたタネ' })),
+    ...state.myItems.filter((item) => item.executor === 'self').map((item) => ({ item, kind: 'self', source: '自分のタネ' }))
+  ].sort((a, b) => sortItems(a.item, b.item));
+
+  if (!items.length) {
+    elements.growthSeedsList.append(createEmptyCard('育てられるタネがまだありません。まずはタネをまいてみましょう。'));
+    return;
+  }
+
+  items.forEach(({ item, kind, source }) => {
+    const growth = getGrowthInfo(item, kind);
+    const card = document.createElement('article');
+    card.className = 'growth-seed-card';
+
+    const visual = document.createElement('div');
+    visual.className = 'growth-seed-visual';
+    const img = document.createElement('img');
+    img.src = growth.icon;
+    img.alt = growth.label;
+    img.width = 64;
+    img.height = 64;
+    visual.append(img);
+
+    const body = document.createElement('div');
+    body.className = 'growth-seed-body';
+
+    const top = document.createElement('div');
+    top.className = 'growth-seed-top';
+    const chips = document.createElement('div');
+    chips.className = 'meta-left';
+    chips.append(createUrgencyChip(item.urgency));
+    const typeChip = document.createElement('span');
+    typeChip.className = `type-chip ${kind === 'partner' ? 'type-partner' : 'type-self'}`;
+    typeChip.textContent = source;
+    chips.append(typeChip);
+    const repeatChip = document.createElement('span');
+    repeatChip.className = 'repeat-chip';
+    repeatChip.textContent = repeatLabel(item);
+    chips.append(repeatChip);
+    top.append(chips);
+
+    const title = document.createElement('h4');
+    title.textContent = item.text;
+    const stateLine = document.createElement('div');
+    stateLine.className = 'growth-stage-line';
+    const strong = document.createElement('strong');
+    strong.textContent = growth.label;
+    const count = document.createElement('span');
+    count.textContent = growth.detail;
+    stateLine.append(strong, count);
+    const note = document.createElement('p');
+    note.className = 'growth-seed-note';
+    note.textContent = growth.subline;
+
+    body.append(top, title, stateLine, note);
+    card.append(visual, body);
+    elements.growthSeedsList.append(card);
   });
 }
 
@@ -514,12 +634,12 @@ function completeMission(kind) {
   const item = source.find((entry) => entry.id === id);
   if (!item) return;
 
-  const stats = getCompletionStats(item, kind);
-  if (!stats.available) {
+  const before = getGrowthInfo(item, kind);
+  if (!before.available) {
     if (isPartner) currentPartnerMissionId = null;
     else currentSelfMissionId = null;
     renderMission(kind);
-    showToast(stats.limitReached ? 'このうれタネは、設定した回数まで育てました。' : '同じうれタネを育てられるのは1日1回までです。');
+    showToast(before.limitReached ? 'このうれタネは、設定した回数まで育てました。' : '同じうれタネに水をあげられるのは1日1回までです。');
     return;
   }
 
@@ -534,21 +654,31 @@ function completeMission(kind) {
   state.history = state.history.slice(0, 500);
   saveState();
   renderHistory();
+  renderGrowthSeeds();
   renderSummary();
-  showBloom();
+
+  const after = getGrowthInfo(item, kind);
+  const bloomed = after.stage === 4 && before.stage < 4;
+
+  if (bloomed) showBloom();
 
   if (isPartner) {
     currentPartnerMissionId = null;
     renderMission('partner');
-    pendingCompletionItem = item;
-    elements.completionText.textContent = item.text;
-    setTimeout(() => {
-      if (!elements.completionDialog.open) elements.completionDialog.showModal();
-    }, 1250);
+    if (bloomed) {
+      pendingCompletionItem = item;
+      elements.completionText.textContent = item.text;
+      setTimeout(() => {
+        if (!elements.completionDialog.open) elements.completionDialog.showModal();
+      }, 1250);
+    } else {
+      pendingCompletionItem = null;
+      showToast(after.limit === null ? `水をあげました（${after.count}回目）` : `水をあげました（${Math.min(after.count, after.limit)} / ${after.limit}）`);
+    }
   } else {
     currentSelfMissionId = null;
     renderMission('self');
-    showToast('自分のタネを育てた記録を残しました。');
+    if (!bloomed) showToast(after.limit === null ? `自分のタネに水をあげました（${after.count}回目）` : `自分のタネに水をあげました（${Math.min(after.count, after.limit)} / ${after.limit}）`);
   }
 }
 
@@ -557,7 +687,7 @@ async function shareCompletion() {
   if (!item) return;
   elements.completionDialog.close();
   pendingCompletionItem = null;
-  const text = `うれタネ「${item.text}」を育てたよ。花がひとつ咲きました。`;
+  const text = `うれタネ「${item.text}」に水をあげたよ。花がひとつ咲きました。`;
   if (navigator.share) {
     try {
       await navigator.share({ title: 'うれタネを育てたよ', text });

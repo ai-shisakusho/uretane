@@ -18,3 +18,31 @@ main{padding:0 20px 24px}.view{display:grid;gap:18px}.home-view{min-height:calc(
 
 /* Ver.0.6: repeat limits */
 .repeat-field{padding-top:2px}.repeat-choice>span{min-height:72px}.limit-count{width:150px;min-height:48px;margin:1px auto 0;padding:6px 12px;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;box-shadow:inset 0 0 0 1.5px var(--line);color:var(--muted);font-size:13px;font-weight:700}.limit-count input{width:58px;border:0;background:transparent;color:var(--text);font:800 18px/1 ui-rounded,"Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;text-align:center;outline:0}.limit-count:focus-within{box-shadow:inset 0 0 0 2px var(--leaf)}.limit-count.is-disabled{opacity:.4}.repeat-note{color:var(--quiet);font-size:10px;line-height:1.55;text-align:center}.repeat-chip{display:inline-flex;width:fit-content;align-items:center;padding:5px 9px;border-radius:999px;background:#F0E9DF;color:#7E684F;font-size:10px;font-weight:800}.item-progress.is-complete strong{color:#A56545}.item-progress.is-today strong{color:var(--deep)}.grow-button{padding-left:20px!important;padding-right:20px!important;font-size:14px}.self-mission-actions .text-action.strong{max-width:112px;text-align:right;line-height:1.35}.preview-rule{margin:5px 0 0!important;color:var(--quiet);font-size:10px!important;font-weight:600!important}
+
+
+/* Ver.0.7 growth icons and per-seed growth */
+.item-growth{margin-top:12px;padding-top:12px;border-top:1px solid #EEF2E8;display:flex;align-items:center;gap:12px}
+.growth-stage-icon{width:52px;height:52px;display:block;flex:0 0 52px}
+.growth-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.growth-text strong{color:var(--text);font-size:13px;line-height:1.4}
+.growth-text span{color:var(--deep);font-size:12px;font-weight:800}
+.growth-text small{color:var(--quiet);font-size:10px;line-height:1.5}
+.growth-seed-list{display:grid;gap:12px;margin-bottom:14px}
+.growth-top-heading{margin-bottom:10px}
+.growth-seed-card{display:grid;grid-template-columns:72px 1fr;gap:14px;padding:16px 18px;border-radius:22px;background:#fff;box-shadow:var(--shadow-soft)}
+.growth-seed-visual{width:72px;height:72px;border-radius:18px;display:grid;place-items:center;background:#F6F3EC}
+.growth-seed-visual img{width:64px;height:64px;display:block}
+.growth-seed-body{min-width:0}
+.growth-seed-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.growth-seed-card h4{margin:0 0 8px;font-size:17px;line-height:1.5;overflow-wrap:anywhere}
+.growth-stage-line{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--deep)}
+.growth-stage-line strong{font-size:13px}
+.growth-stage-line span{font-size:12px;font-weight:800;color:#A56545}
+.growth-seed-note{margin:7px 0 0;color:var(--quiet);font-size:11px;line-height:1.55}
+.history-card>p{margin-bottom:0}
+@media (max-width: 560px){
+  .growth-seed-card{grid-template-columns:64px 1fr;gap:12px;padding:14px}
+  .growth-seed-visual{width:64px;height:64px;border-radius:16px}
+  .growth-seed-visual img,.growth-stage-icon{width:48px;height:48px}
+  .growth-seed-card h4{font-size:16px}
+}

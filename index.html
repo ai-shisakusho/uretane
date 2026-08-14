@@ -78,9 +78,9 @@
             <div id="partnerMissionCard" class="mission-card" hidden>
               <span class="urgency-chip" id="partnerMissionUrgency"></span>
               <p class="mission-text" id="partnerMissionText"></p>
-              <div class="mission-foot"><span class="sprout-small" aria-hidden="true"></span><span>できたら、花を咲かせよう。</span></div>
+              <div class="mission-foot"><span class="sprout-small" aria-hidden="true"></span><span>できたら、水をあげよう。</span></div>
               <div class="button-row">
-                <button class="primary-button grow-button" id="partnerDoneButton" type="button">できた！花を咲かせる</button>
+                <button class="primary-button grow-button" id="partnerDoneButton" type="button">💧 水をあげる</button>
                 <button class="secondary-button" id="partnerRerollButton" type="button">別のタネ</button>
               </div>
             </div>
@@ -98,7 +98,7 @@
               <div><span class="urgency-chip" id="selfMissionUrgency"></span><p class="self-mission-text" id="selfMissionText"></p></div>
               <div class="self-mission-actions">
                 <button class="text-action" id="selfRerollButton" type="button">別のタネ</button>
-                <button class="text-action strong" id="selfDoneButton" type="button">できた！花を咲かせる</button>
+                <button class="text-action strong" id="selfDoneButton" type="button">💧 水をあげる</button>
               </div>
             </div>
             <button class="secondary-button full" id="drawSelfButton" type="button">自分のタネを選ぶ</button>
@@ -130,7 +130,9 @@
 
       <section class="view" data-view="history" aria-labelledby="historyTitle" hidden>
         <div class="page-title-row"><div><p class="eyebrow">GROWTH</p><h2 id="historyTitle">育ち具合</h2></div></div>
-        <section class="growth-card" id="growthCard" aria-label="うれタネの記録" hidden>
+        <div class="history-heading growth-top-heading"><h3>タネごとの育ち具合</h3><p>水をあげるたびに、タネが少しずつ育ちます。</p></div>
+        <div id="growthSeedsList" class="growth-seed-list"></div>
+        <section class="growth-card" id="growthCard" aria-label="今月の記録" hidden>
           <div class="growth-visual" aria-hidden="true"><img src="icon-flower.svg" alt=""></div>
           <div class="growth-copy">
             <p class="mini-label">今月</p>
@@ -140,7 +142,7 @@
             <p class="growth-note">ノルマではなく、どれくらい育ったかをそっと振り返る記録です。</p>
           </div>
         </section>
-        <div class="history-heading"><h3>咲いた花の記録</h3><p>同じタネを何度育てても残ります。</p></div>
+        <div class="history-heading"><h3>水やりの記録</h3><p>水をあげた記録を新しい順に残します。</p></div>
         <div id="historyList" class="history-list"></div>
       </section>
 
@@ -167,7 +169,7 @@
           <p>自分がまいたタネ、届いたタネ、育てた記録、端末識別用IDをこの端末から削除します。元には戻せません。</p>
           <button class="danger-button" id="resetButton" type="button">すべて初期化する</button>
         </article>
-        <p class="version">Prototype 003 / Ver.0.6</p>
+        <p class="version">Prototype 003 / Ver.0.7</p>
       </section>
     </main>
 
@@ -241,7 +243,7 @@
 
   <dialog id="completionDialog" class="modal completion-modal">
     <div class="completion-mark" aria-hidden="true"><img src="icon-flower.svg" alt=""></div>
-    <div class="completion-copy"><p class="eyebrow">うれタネを育てました</p><h2>花がひとつ咲きました</h2><p id="completionText" class="helper"></p></div>
+    <div class="completion-copy"><p class="eyebrow">うれタネに水をあげました</p><h2>花がひとつ咲きました</h2><p id="completionText" class="helper"></p></div>
     <div class="modal-actions stack-mobile"><button class="secondary-button" id="closeCompletionButton" type="button">閉じる</button><button class="primary-button" id="shareCompletionButton" type="button">LINEなどで伝える</button></div>
   </dialog>
 
