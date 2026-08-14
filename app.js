@@ -57,6 +57,8 @@ const elements = {
   requestText: $('requestText'),
   charCount: $('charCount'),
   saveRequestButton: $('saveRequestButton'),
+  completionLimit: $('completionLimit'),
+  limitCountRow: $('limitCountRow'),
   mineList: $('mineList'),
   partnerList: $('partnerList'),
   minePanel: $('minePanel'),
@@ -116,8 +118,8 @@ function loadState() {
     return {
       schemaVersion: 1,
       deviceId: typeof parsed.deviceId === 'string' ? parsed.deviceId : crypto.randomUUID(),
-      myItems: Array.isArray(parsed.myItems) ? parsed.myItems.filter(isValidLocalItem) : [],
-      partnerItems: Array.isArray(parsed.partnerItems) ? parsed.partnerItems.filter(isValidPartnerItem) : [],
+      myItems: Array.isArray(parsed.myItems) ? parsed.myItems.filter(isValidLocalItem).map(normalizeItem) : [],
+      partnerItems: Array.isArray(parsed.partnerItems) ? parsed.partnerItems.filter(isValidPartnerItem).map(normalizeItem) : [],
       history: Array.isArray(parsed.history) ? parsed.history.filter(isValidHistoryItem).slice(0, 500) : []
     };
   } catch {
@@ -147,6 +149,44 @@ function isValidHistoryItem(item) {
 
 function isSafeText(value) {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= MAX_TEXT_LENGTH;
+}
+
+function normalizeCompletionLimit(value) {
+  if (value === null) return null;
+  if (Number.isInteger(value) && value >= 1 && value <= 99) return value;
+  return 1;
+}
+
+function normalizeItem(item) {
+  return { ...item, completionLimit: normalizeCompletionLimit(item.completionLimit) };
+}
+
+function getCompletionStats(item, kind) {
+  const completions = state.history
+    .filter((entry) => entry.kind === kind && entry.sourceItemId === item.id)
+    .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+  const limit = normalizeCompletionLimit(item.completionLimit);
+  const now = new Date();
+  const completedToday = completions.some((entry) => isSameLocalDay(entry.completedAt, now));
+  const limitReached = limit !== null && completions.length >= limit;
+  return { completions, count: completions.length, limit, completedToday, limitReached, available: !completedToday && !limitReached };
+}
+
+function isSameLocalDay(iso, referenceDate = new Date()) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getFullYear() === referenceDate.getFullYear()
+    && date.getMonth() === referenceDate.getMonth()
+    && date.getDate() === referenceDate.getDate();
+}
+
+function getAvailableItems(items, kind) {
+  return items.filter((item) => getCompletionStats(item, kind).available);
+}
+
+function repeatLabel(item) {
+  const limit = normalizeCompletionLimit(item.completionLimit);
+  return limit === null ? '何回でも' : `全${limit}回`;
 }
 
 function nowIso() {
@@ -241,6 +281,11 @@ function createRequestCard(item, type) {
     metaLeft.append(typeChip);
   }
 
+  const repeatChip = document.createElement('span');
+  repeatChip.className = 'repeat-chip';
+  repeatChip.textContent = repeatLabel(item);
+  metaLeft.append(repeatChip);
+
   const actions = document.createElement('div');
   actions.className = 'card-actions';
 
@@ -274,15 +319,25 @@ function createRequestCard(item, type) {
   const canTrack = type === 'partner' || (type === 'mine' && item.executor === 'self');
   if (canTrack) {
     const kind = type === 'partner' ? 'partner' : 'self';
-    const completions = state.history
-      .filter((entry) => entry.kind === kind && entry.sourceItemId === item.id)
-      .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+    const stats = getCompletionStats(item, kind);
     const progress = document.createElement('div');
     progress.className = 'item-progress';
+    if (stats.limitReached) progress.classList.add('is-complete');
+    else if (stats.completedToday) progress.classList.add('is-today');
+
     const count = document.createElement('strong');
-    count.textContent = completions.length ? `${completions.length}回育てた` : 'まだ育てていません';
+    if (stats.limit === null) {
+      count.textContent = stats.count ? `${stats.count}回育てた` : 'まだ育てていません';
+    } else {
+      count.textContent = `${stats.count} / ${stats.limit}回育てた`;
+    }
+
     const last = document.createElement('span');
-    last.textContent = completions.length ? `最後 ${formatDate(completions[0].completedAt)}` : '育てると花が咲きます';
+    if (stats.limitReached) last.textContent = 'このタネは咲ききりました';
+    else if (stats.completedToday) last.textContent = '今日は育てました';
+    else if (stats.completions.length) last.textContent = `最後 ${formatDate(stats.completions[0].completedAt)}`;
+    else last.textContent = '同じタネは1日1回まで';
+
     progress.append(count, last);
     card.append(progress);
   }
@@ -300,7 +355,7 @@ function createUrgencyChip(urgency) {
 function renderHistory() {
   elements.historyList.replaceChildren();
   if (!state.history.length) {
-    elements.historyList.append(createEmptyCard('「育てた！」を押すと、ここに花の記録が残ります。'));
+    elements.historyList.append(createEmptyCard('「できた！花を咲かせる」を押すと、ここに花の記録が残ります。'));
     return;
   }
   const sorted = [...state.history].sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
@@ -375,8 +430,8 @@ function renderSummary() {
   elements.selfHero.hidden = selfItems.length === 0;
   elements.nextStepCard.hidden = !(partnerTargetItems.length > 0 && !hasActionableSeeds);
 
-  elements.drawPartnerButton.disabled = state.partnerItems.length === 0;
-  elements.drawSelfButton.disabled = selfItems.length === 0;
+  elements.drawPartnerButton.disabled = getAvailableItems(state.partnerItems, 'partner').length === 0;
+  elements.drawSelfButton.disabled = getAvailableItems(selfItems, 'self').length === 0;
 
   if (!hasAnyData) {
     const activeView = document.querySelector('.view.is-active');
@@ -387,7 +442,8 @@ function renderSummary() {
 function renderMission(kind) {
   const isPartner = kind === 'partner';
   let id = isPartner ? currentPartnerMissionId : currentSelfMissionId;
-  const source = isPartner ? state.partnerItems : state.myItems.filter((item) => item.executor === 'self');
+  const allSource = isPartner ? state.partnerItems : state.myItems.filter((item) => item.executor === 'self');
+  const source = getAvailableItems(allSource, kind);
   let item = source.find((entry) => entry.id === id);
   const empty = isPartner ? elements.partnerMissionEmpty : elements.selfMissionEmpty;
   const card = isPartner ? elements.partnerMissionCard : elements.selfMissionCard;
@@ -396,7 +452,7 @@ function renderMission(kind) {
   const drawButton = isPartner ? elements.drawPartnerButton : elements.drawSelfButton;
   const rerollButton = isPartner ? elements.partnerRerollButton : elements.selfRerollButton;
 
-  // タネがあれば、ホームを開いた時点で「今日の1つ」を見せる。
+  // 今日育てられるタネだけから、自動で1つ選ぶ。
   if (!item && source.length) {
     const pool = getPriorityPool(source);
     item = pool[Math.floor(Math.random() * pool.length)];
@@ -408,8 +464,18 @@ function renderMission(kind) {
   if (!item) {
     empty.hidden = false;
     card.hidden = true;
-    drawButton.hidden = false;
+    drawButton.hidden = allSource.length > 0;
     rerollButton.hidden = true;
+    const p = empty.querySelector('p');
+    if (p && allSource.length) {
+      const hasTomorrow = allSource.some((entry) => {
+        const stats = getCompletionStats(entry, kind);
+        return !stats.limitReached && stats.completedToday;
+      });
+      p.textContent = hasTomorrow
+        ? '今日育てられるタネはすべて育ちました。また明日。'
+        : '育てられるタネはすべて咲ききりました。';
+    }
     return;
   }
 
@@ -423,7 +489,8 @@ function renderMission(kind) {
 }
 
 function drawMission(kind) {
-  const source = kind === 'partner' ? state.partnerItems : state.myItems.filter((item) => item.executor === 'self');
+  const allSource = kind === 'partner' ? state.partnerItems : state.myItems.filter((item) => item.executor === 'self');
+  const source = getAvailableItems(allSource, kind);
   if (!source.length) return;
   const selectedPool = getPriorityPool(source);
   const selected = selectedPool[Math.floor(Math.random() * selectedPool.length)];
@@ -446,6 +513,15 @@ function completeMission(kind) {
   const source = isPartner ? state.partnerItems : state.myItems;
   const item = source.find((entry) => entry.id === id);
   if (!item) return;
+
+  const stats = getCompletionStats(item, kind);
+  if (!stats.available) {
+    if (isPartner) currentPartnerMissionId = null;
+    else currentSelfMissionId = null;
+    renderMission(kind);
+    showToast(stats.limitReached ? 'このうれタネは、設定した回数まで育てました。' : '同じうれタネを育てられるのは1日1回までです。');
+    return;
+  }
 
   state.history.unshift({
     id: crypto.randomUUID(),
@@ -515,8 +591,22 @@ function openRequestDialog(item = null) {
   if (executorInput) executorInput.checked = true;
   if (urgencyInput) urgencyInput.checked = true;
 
+  const limit = normalizeCompletionLimit(item?.completionLimit);
+  const repeatMode = limit === null ? 'unlimited' : 'limited';
+  const repeatInput = elements.requestForm.querySelector(`input[name="repeatMode"][value="${repeatMode}"]`);
+  if (repeatInput) repeatInput.checked = true;
+  elements.completionLimit.value = String(limit ?? 1);
+  updateRepeatControls();
+
   elements.requestDialog.showModal();
   setTimeout(() => elements.requestText.focus(), 50);
+}
+
+function updateRepeatControls() {
+  const mode = elements.requestForm.querySelector('input[name="repeatMode"]:checked')?.value || 'limited';
+  const limited = mode === 'limited';
+  elements.completionLimit.disabled = !limited;
+  elements.limitCountRow.classList.toggle('is-disabled', !limited);
 }
 
 function saveRequest() {
@@ -529,7 +619,18 @@ function saveRequest() {
 
   const executor = elements.requestForm.querySelector('input[name="executor"]:checked')?.value;
   const urgency = elements.requestForm.querySelector('input[name="urgency"]:checked')?.value;
-  if (!['partner', 'self'].includes(executor) || !urgencyMeta[urgency]) return;
+  const repeatMode = elements.requestForm.querySelector('input[name="repeatMode"]:checked')?.value;
+  if (!['partner', 'self'].includes(executor) || !urgencyMeta[urgency] || !['limited', 'unlimited'].includes(repeatMode)) return;
+
+  let completionLimit = null;
+  if (repeatMode === 'limited') {
+    completionLimit = Number.parseInt(elements.completionLimit.value, 10);
+    if (!Number.isInteger(completionLimit) || completionLimit < 1 || completionLimit > 99) {
+      elements.completionLimit.focus();
+      showToast('回数は1〜99回で指定してください。');
+      return;
+    }
+  }
 
   const editingId = elements.editingId.value;
   const timestamp = nowIso();
@@ -537,7 +638,7 @@ function saveRequest() {
   if (editingId) {
     const index = state.myItems.findIndex((item) => item.id === editingId);
     if (index >= 0) {
-      state.myItems[index] = { ...state.myItems[index], text, executor, urgency, updatedAt: timestamp };
+      state.myItems[index] = { ...state.myItems[index], text, executor, urgency, completionLimit, updatedAt: timestamp };
     }
   } else {
     state.myItems.push({
@@ -545,6 +646,7 @@ function saveRequest() {
       text,
       executor,
       urgency,
+      completionLimit,
       createdAt: timestamp,
       updatedAt: timestamp
     });
@@ -595,7 +697,10 @@ function buildSharePreview(container, items) {
     row.append(createUrgencyChip(item.urgency));
     const text = document.createElement('p');
     text.textContent = item.text;
-    row.append(text);
+    const rule = document.createElement('p');
+    rule.className = 'preview-rule';
+    rule.textContent = `同じタネは1日1回 / ${repeatLabel(item)}`;
+    row.append(text, rule);
     container.append(row);
   });
 }
@@ -632,6 +737,7 @@ async function createEncryptedShareUrl(items) {
       id: item.id,
       text: item.text,
       urgency: item.urgency,
+      completionLimit: normalizeCompletionLimit(item.completionLimit),
       updatedAt: item.updatedAt
     }))
   };
@@ -734,11 +840,15 @@ function validateSharePayload(payload) {
   for (const item of payload.items) {
     if (!item || typeof item.id !== 'string' || item.id.length > 80 || ids.has(item.id)) return null;
     if (!isSafeText(item.text) || !urgencyMeta[item.urgency]) return null;
+    const completionLimit = item.completionLimit === undefined ? 1 : normalizeCompletionLimit(item.completionLimit);
+    if (item.completionLimit !== undefined && item.completionLimit !== null
+      && (!Number.isInteger(item.completionLimit) || item.completionLimit < 1 || item.completionLimit > 99)) return null;
     ids.add(item.id);
     items.push({
       id: item.id,
       text: item.text.trim(),
       urgency: item.urgency,
+      completionLimit,
       updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : payload.generatedAt
     });
   }
@@ -754,7 +864,7 @@ function showImportDialog(payload) {
   const existing = state.partnerItems.filter((item) => item.sourceId === payload.sourceId);
   const newIds = new Set(payload.items.map((item) => item.id));
   const addCount = payload.items.filter((item) => !existing.some((old) => old.id === item.id)).length;
-  const updateCount = payload.items.filter((item) => existing.some((old) => old.id === item.id && (old.text !== item.text || old.urgency !== item.urgency))).length;
+  const updateCount = payload.items.filter((item) => existing.some((old) => old.id === item.id && (old.text !== item.text || old.urgency !== item.urgency || normalizeCompletionLimit(old.completionLimit) !== normalizeCompletionLimit(item.completionLimit)))).length;
   const removeCount = existing.filter((item) => !newIds.has(item.id)).length;
   elements.importSummary.textContent = `受信 ${payload.items.length}件 / 追加 ${addCount}件 / 更新 ${updateCount}件 / 削除 ${removeCount}件`;
   elements.importStatus.textContent = '取り込むまで、この端末のデータは変更されません。';
@@ -771,6 +881,7 @@ function importPendingShare() {
     sourceId,
     text: item.text,
     urgency: item.urgency,
+    completionLimit: normalizeCompletionLimit(item.completionLimit),
     updatedAt: item.updatedAt,
     importedAt
   }));
@@ -842,6 +953,9 @@ function attachEvents() {
   elements.addRequestButton.addEventListener('click', () => openRequestDialog());
   elements.requestText.addEventListener('input', () => {
     elements.charCount.textContent = String(elements.requestText.value.length);
+  });
+  elements.requestForm.querySelectorAll('input[name="repeatMode"]').forEach((input) => {
+    input.addEventListener('change', updateRepeatControls);
   });
   elements.saveRequestButton.addEventListener('click', saveRequest);
 

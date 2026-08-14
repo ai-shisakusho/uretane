@@ -78,9 +78,9 @@
             <div id="partnerMissionCard" class="mission-card" hidden>
               <span class="urgency-chip" id="partnerMissionUrgency"></span>
               <p class="mission-text" id="partnerMissionText"></p>
-              <div class="mission-foot"><span class="sprout-small" aria-hidden="true"></span><span>今日ひとつ、育ててみる。</span></div>
+              <div class="mission-foot"><span class="sprout-small" aria-hidden="true"></span><span>できたら、花を咲かせよう。</span></div>
               <div class="button-row">
-                <button class="primary-button grow-button" id="partnerDoneButton" type="button">育てた！</button>
+                <button class="primary-button grow-button" id="partnerDoneButton" type="button">できた！花を咲かせる</button>
                 <button class="secondary-button" id="partnerRerollButton" type="button">別のタネ</button>
               </div>
             </div>
@@ -98,7 +98,7 @@
               <div><span class="urgency-chip" id="selfMissionUrgency"></span><p class="self-mission-text" id="selfMissionText"></p></div>
               <div class="self-mission-actions">
                 <button class="text-action" id="selfRerollButton" type="button">別のタネ</button>
-                <button class="text-action strong" id="selfDoneButton" type="button">育てた！</button>
+                <button class="text-action strong" id="selfDoneButton" type="button">できた！花を咲かせる</button>
               </div>
             </div>
             <button class="secondary-button full" id="drawSelfButton" type="button">自分のタネを選ぶ</button>
@@ -167,7 +167,7 @@
           <p>自分がまいたタネ、届いたタネ、育てた記録、端末識別用IDをこの端末から削除します。元には戻せません。</p>
           <button class="danger-button" id="resetButton" type="button">すべて初期化する</button>
         </article>
-        <p class="version">Prototype 003 / Ver.0.5</p>
+        <p class="version">Prototype 003 / Ver.0.6</p>
       </section>
     </main>
 
@@ -204,6 +204,15 @@
           <label class="choice-card owner-choice partner-choice"><input type="radio" name="executor" value="partner" checked><span><i class="owner-mark partner-mark" aria-hidden="true"></i><strong>相手に届ける</strong><small>相手が育てるタネ</small></span></label>
           <label class="choice-card owner-choice self-choice"><input type="radio" name="executor" value="self"><span><i class="seed-icon tiny" aria-hidden="true"></i><strong>自分で育てる</strong><small>自分用のタネ</small></span></label>
         </div>
+      </fieldset>
+      <fieldset class="field repeat-field">
+        <legend>何回、育てられる？</legend>
+        <div class="choice-grid two">
+          <label class="choice-card repeat-choice"><input type="radio" name="repeatMode" value="limited" checked><span><strong>回数を決める</strong><small>合計○回まで</small></span></label>
+          <label class="choice-card repeat-choice"><input type="radio" name="repeatMode" value="unlimited"><span><strong>何回でも</strong><small>日にちを変えて繰り返せる</small></span></label>
+        </div>
+        <label class="limit-count" id="limitCountRow"><input id="completionLimit" type="number" inputmode="numeric" min="1" max="99" value="1"><span>回まで</span></label>
+        <small class="repeat-note">どちらを選んでも、同じタネを育てられるのは1日1回までです。</small>
       </fieldset>
       <div class="modal-actions"><button class="secondary-button" value="cancel" type="submit">キャンセル</button><button class="primary-button" id="saveRequestButton" type="button">タネを保存</button></div>
     </form>
